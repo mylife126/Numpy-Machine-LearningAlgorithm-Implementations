@@ -1,4 +1,8 @@
 import numpy as np
+import matplotlib.pyplot as plt
+import random as rd
+from sklearn.datasets import make_blobs
+np.random.seed(123)
 from scipy.special import logsumexp
 
 class GMM(object):
@@ -124,7 +128,7 @@ class GMM(object):
 				assert self.mu[k].shape == self.x[i,:].shape
 				xMinusMu_j = np.array([self.x[i, :] - self.mu[k]])
 				numerator += self.Q[i,k] * (xMinusMu_j.T @ xMinusMu_j)  # 1 by 1 * n by 1 @ 1 by n
-			temp.append(q_j / denom[k])
+			temp.append(numerator / denom[k])
 
 		temp = np.array(temp)    # k by n by n
 		assert temp.shape == self.sig.shape
@@ -153,12 +157,20 @@ class GMM(object):
 			predictions[i][c] = posterious
 		return predictions
 
-# if __name__ == '__main__':
-# 	data = np.random.randn(4,3)
-# 	gmm =GMM(2, data)
-# 	gmm.train(1, False)
-# 	# print(gmm.predict(data))
-# 	print(gmm.sig)
+if __name__ == '__main__':
+	X, y = make_blobs(centers=4, n_samples=1000)
+	print(f'Shape of dataset: {X.shape}')
+
+	fig = plt.figure(figsize=(8,6))
+	plt.scatter(X[:,0], X[:,1], c=y)
+	plt.title("Dataset with 4 clusters")
+	plt.xlabel("First feature")
+	plt.ylabel("Second feature")
+	plt.show()
+
+	gmm = GMM(4, X)
+	gmm.train(10, False)
+	print(gmm.sig)
 
 
 
