@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import random as rd
 from sklearn.datasets import make_blobs
 np.random.seed(123)
+
+
 class KMeans():
     def __init__(self, k, X):
         '''
@@ -83,7 +85,7 @@ class KMeans():
         plt.show()
 
 if __name__ == '__main__':
-    X, y = make_blobs(centers=4, n_samples=1000)
+    X, y = make_blobs(centers=10, n_samples=1000)
     print(f'Shape of dataset: {X.shape}')
 
     fig = plt.figure(figsize=(8,6))
@@ -92,6 +94,6 @@ if __name__ == '__main__':
     plt.xlabel("First feature")
     plt.ylabel("Second feature")
     plt.show()
-    kmeans = KMeans(4, X)
+    kmeans = KMeans(10, X)
     kmeans.fit(X, 500)
     kmeans.plot_clusters(X)
