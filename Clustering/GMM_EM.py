@@ -169,8 +169,12 @@ if __name__ == '__main__':
 	plt.show()
 
 	gmm = GMM(4, X)
-	gmm.train(10, False)
-	print(gmm.sig)
+	gmm.train(1, False)
+
+	plt.scatter(X[:,0], X[:,1], c=y)
+	plt.scatter(gmm.mu[:, 0], gmm.mu[:,1], c='r')
+	print(gmm.mu)
+	plt.show()
 
 
 

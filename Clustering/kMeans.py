@@ -6,8 +6,9 @@ np.random.seed(123)
 class KMeans():
     def __init__(self, k, X):
         '''
-        k  -- numbers of clusters 
-        X  -- the given training data'''
+        k              -- numbers of clusters, in the shape of 1 by k
+        X              -- the given training data, in the shape of m by n
+        self.centroids -- the predefined centriod, with the shape of k by n'''
         self.k = k
         self.mRows = X.shape[0]
         self.nFeatures = X.shape[1]
@@ -31,39 +32,47 @@ class KMeans():
         Implement the core algorithm here.
         data [[x, y],
               [x, y],]
-              
-              
         would return the centriod founded
-        centroid -- k by n 
+
+        centroid        -- k by n 
+        center2points   -- map<Integer, list<Integer>>, for each centeroid, we record the assigned data points to this cluster
+
         """
         from collections import defaultdict
         
-        assigned = defaultdict()
+        # assigned = defaultdict()
         center2points = defaultdict(list)
         for i in range(maxIter):
             print("training at iter, " ,i)
+            #STEP1 for each data point, we need to first give them a correct assignment of which centroid
             for sample in X:
                 # print(sample)
                 distances = []
+                #try out every centroid, by calculating the distance between each
                 for k in range(self.k):
                     whichCenter = self.centroids[k]
                     # print(sample, whichCenter)
                     dist = self.euclidian(sample, whichCenter)
                     distances.append(dist)
-                    
+                #after find all the distanced between tis datapoint and centroids, we only want to have
+                #the minimal distance. Argmin is used to find the index
                 assignedCenter = np.argmin(distances)
-                # print(assignedCenter)
+
+                #assign the datapoint to its assigned centorid
                 center2points[assignedCenter].append(sample)
-                
+            
+            #STEP2 minimizing the intradistance between points to the cluster  
+
+            #within each cluster, fix the centroid by averaging the points assigned to this cluster 
             for center in center2points:
-                allThePointsAssigned = center2points[center]
-                howMany = len(allThePointsAssigned)
-                temp = [0 for i in range (self.nFeatures)]
-                for points in allThePointsAssigned:
+                allThePointsAssigned = center2points[center]   #get the list out of from the hash
+                howMany = len(allThePointsAssigned)            #total points assigned to this cluster
+                temp = [0 for i in range (self.nFeatures)]     #assigned an empty list to contain the same size of feature
+                for points in allThePointsAssigned:            #accumulate the features within the centroid
                     temp += points
                 
-                newCenter = [coord / howMany for coord in temp]
-                self.centroids[center] = newCenter
+                newCenter = [coord / howMany for coord in temp]#take the average
+                self.centroids[center] = newCenter             #update the centroid
         print("done")
         
     def plot_clusters(self, data):
@@ -73,7 +82,6 @@ class KMeans():
         plt.scatter(self.centroids[:, 0], self.centroids[:,1], c='r')
         plt.show()
 
-        
 if __name__ == '__main__':
     X, y = make_blobs(centers=4, n_samples=1000)
     print(f'Shape of dataset: {X.shape}')
@@ -85,5 +93,5 @@ if __name__ == '__main__':
     plt.ylabel("Second feature")
     plt.show()
     kmeans = KMeans(4, X)
-    kmeans.fit(X, 100)
+    kmeans.fit(X, 500)
     kmeans.plot_clusters(X)
