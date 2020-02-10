@@ -14,7 +14,7 @@ class ridgeRegression():
 		   n by n @ n * m @ m by 1 => n by 1 
 
 		
-		self.theta    -- int[N][N] the weight for the model X@theta  
+		self.theta    -- int[N] the weight for the model X@theta  
 		self.intercep -- boolean  decide if wanna include the interception or not
 		'''
 		self.a = alpha
@@ -33,6 +33,9 @@ class ridgeRegression():
 		'''
 		X   -- the training data in the shape of m by n 
 		y   -- the training label in the shape of m by 1
+		
+		linear Model:  y = X @ weights
+		Normal Equation :  weight  =  (XT@X + lambda *I)^-1 @ XT @ Y
 
 		return:
 		weights -- in the shape of n by 1
@@ -44,9 +47,9 @@ class ridgeRegression():
 
 		
 		self.nFeatures = X.shape[1]			
-		
 		firstMatrix =np.linalg.inv((X.T @ X + self.a * np.eye(self.nFeatures)))
 		self.theta = firstMatrix @ X.T @ y
+		# print(self.theta.shape)
 
 	def predict(self, testData):
 		'''

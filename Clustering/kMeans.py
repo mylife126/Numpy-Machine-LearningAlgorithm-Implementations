@@ -64,7 +64,6 @@ class KMeans():
                 center2points[assignedCenter].append(sample)
             
             #STEP2 minimizing the intradistance between points to the cluster  
-
             #within each cluster, fix the centroid by averaging the points assigned to this cluster 
             for center in center2points:
                 allThePointsAssigned = center2points[center]   #get the list out of from the hash
@@ -85,7 +84,7 @@ class KMeans():
         plt.show()
 
 if __name__ == '__main__':
-    X, y = make_blobs(centers=10, n_samples=1000)
+    X, y = make_blobs(centers=4, n_samples=1000)
     print(f'Shape of dataset: {X.shape}')
 
     # fig = plt.figure(figsize=(8,6))
@@ -94,6 +93,6 @@ if __name__ == '__main__':
     # plt.xlabel("First feature")
     # plt.ylabel("Second feature")
     # plt.show()
-    kmeans = KMeans(10, X)
-    kmeans.fit(X, 1000)
+    kmeans = KMeans(4, X)
+    kmeans.fit(X, 100)
     kmeans.plot_clusters(X)
