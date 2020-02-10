@@ -7,7 +7,7 @@ This repo would contains most shallow machine learning algorithm, ranging from G
 
 - Below shows the performance of the Logistic Regression
 
-![image-20200209224850136](linearModel/logisticRegression.png)
+<img src="linearModel/logisticRegression.png" alt="image-20200209224850136" style="zoom: 67%;" />
 
 - Below shows the performance of the high- dimensional Ridge Regression
 
@@ -15,4 +15,4 @@ This repo would contains most shallow machine learning algorithm, ranging from G
 
 ## Folder **Clustering** one would be able to find 3 major clustering algorithms: GMM, Kmeans, KNN. 
 
-![image-20200209224850136](Clustering/Kmeans.png)
+<img src="Clustering/kmeans.png" alt="image-20200209224850136" style="zoom: 50%;" />
