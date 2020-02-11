@@ -3,8 +3,6 @@ import matplotlib.pyplot as plt
 import random as rd
 from sklearn.datasets import make_blobs
 np.random.seed(123)
-
-
 class KMeans():
     def __init__(self, k, X):
         '''

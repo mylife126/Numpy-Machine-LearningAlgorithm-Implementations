@@ -4,7 +4,8 @@ This is a practice and a tutorial- alike repo to share some of my implementation
 This repo would contains most shallow machine learning algorithm, ranging from GMM with EM, Kmeans, KNN, LogisticRegression derived by maximum likelihood (optimized using gradient descent), Ridge Regression using normal equation.
 
 ## Folder linearModel one would be able to find RidgeRegression and Logistic Regression:
-
+- Below shows the performance of the SVM with Norm2 Regularization
+<img src="linearModel/plots/svmPlot.png" alt="image-20200209224850136" style="zoom: 67%;" />
 - Below shows the performance of the Logistic Regression
 
 <img src="linearModel/plots/logisticRegression.png" alt="image-20200209224850136" style="zoom: 67%;" />
