@@ -66,14 +66,14 @@ class KMeans():
             #STEP2 minimizing the intradistance between points to the cluster  
             #within each cluster, fix the centroid by averaging the points assigned to this cluster 
             for center in center2points:
-                allThePointsAssigned = center2points[center]   #get the list out of from the hash
-                howMany = len(allThePointsAssigned)            #total points assigned to this cluster
-                temp = [0 for i in range (self.nFeatures)]     #assigned an empty list to contain the same size of feature
-                for points in allThePointsAssigned:            #accumulate the features within the centroid
-                    temp += points
-                
-                newCenter = [coord / howMany for coord in temp]#take the average
-                self.centroids[center] = newCenter             #update the centroid
+                allThePointsAssigned = center2points[center]         #get the list out of from the hash
+                howMany = len(allThePointsAssigned)                  #total points assigned to this cluster
+                runningSum = [0 for i in range (self.nFeatures)]     #assigned an empty list to contain the same size of feature
+                for points in allThePointsAssigned:                  #accumulate the features within the centroid
+                    runningSum += points
+                # print(temp)
+                newCenter = [coord / howMany for coord in runningSum ]#take the average
+                self.centroids[center] = newCenter                    #update the centroid
         print("done")
         
     def plot_clusters(self, data):
