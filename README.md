@@ -6,7 +6,7 @@ This repo would contains most shallow machine learning algorithm, ranging from G
 ## Folder linearModel one would be able to find RidgeRegression and Logistic Regression:
 - Below shows the performance of the SVM with Norm2 Regularization
 
-<img src="linearModel/plots/SVMPlot.png" alt="image-20200209224850136" style="zoom: 67%;" />
+![image-20200210235055515](linearModel/plots/SVMPlot.png)
 
 - Below shows the performance of the Logistic Regression
 
