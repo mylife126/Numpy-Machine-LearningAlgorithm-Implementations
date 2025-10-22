@@ -62,9 +62,7 @@ but differ in how the gradient is estimated per iteration.
 
 ## 1️⃣ Problem Definition
 Given a data matrix  
-$$
-X \in \mathbb{R}^{m \times n}
-$$
+$X \in \mathbb{R}^{m \times n}$
 where:
 - \(m\) = number of samples  
 - \(n\) = number of features  
@@ -72,62 +70,62 @@ where:
 **Goal:** Find a low-dimensional representation \(Z \in \mathbb{R}^{m \times k}\) (where \(k < n\)) that preserves as much variance (information) as possible.
 
 We seek a transformation matrix:
-$$
+$
 U_k \in \mathbb{R}^{n \times k}
-$$
+$
 such that:
-$$
+$
 Z = X_c U_k
-$$
+$
 where \(X_c\) is the **centered** data (zero-mean).
 
 ---
 
 ## 2️⃣ Center the Data
 Since variance is computed around the mean, first subtract the column-wise mean:
-$$
+$
 X_c = X - \mathbf{1}\mu^\top,\qquad
 \mu = \frac{1}{m}\sum_{i=1}^m x_i
-$$
+$
 
 ---
 
 ## 3️⃣ Optimization Objective
 Find a unit vector \(u\) that maximizes the **variance** of the data projected onto \(u\):
-$$
+$
 \max_{u}\ \mathrm{Var}(X_c u)\quad \text{s.t. } \|u\|=1
-$$
+$
 
 For each data point \(x_i\), its projection onto \(u\) is a scalar:
-$$
+$
 z_i = x_i^\top u
-$$
+$
 
 Since the data are centered (\(\bar z = 0\)):
-$$
+$
 \mathrm{Var}(z) = \frac{1}{m}\sum_{i=1}^m (x_i^\top u)^2
-$$
+$
 
 Matrix form:
-$$
+$
 \mathrm{Var}(z) = \frac{1}{m}u^\top X_c^\top X_c\, u \;=\; u^\top \Sigma u
-$$
+$
 with the covariance matrix:
-$$
+$
 \Sigma = \frac{1}{m}\, X_c^\top X_c
-$$
+$
 
 ---
 
 ## 4️⃣ Lagrange Multiplier ⇒ Eigenvalue Problem
 Maximize \(u^\top \Sigma u\) subject to \(\|u\|=1\):
-$$
+$
 \mathcal{L}(u,\lambda) = u^\top \Sigma u \;-\; \lambda (u^\top u - 1)
-$$
+$
 Set derivative to zero:
-$$
+$
 2\Sigma u - 2\lambda u = 0 \quad\Rightarrow\quad \Sigma u = \lambda u
-$$
+$
 
 **Therefore:**
 - \(u_i\): eigenvectors of \(\Sigma\) (principal component directions)  
@@ -139,13 +137,13 @@ Sort eigenvalues in descending order, take the top \(k\) eigenvectors → \(U_k\
 
 ## 5️⃣ Dimensionality Reduction & Reconstruction
 - **Projection:**
-  $$
+  $
   Z = X_c U_k
-  $$
+  $
 - **Reconstruction:**
-  $$
+  $
   \hat{X} = Z U_k^\top + \mu
-  $$
+  $
 
 ---
 
@@ -153,29 +151,29 @@ Sort eigenvalues in descending order, take the top \(k\) eigenvectors → \(U_k\
 Directly computing eigenvectors of \(\Sigma = \frac{1}{m} X_c^\top X_c\) (shape \(n \times n\)) can be unstable or expensive when \(n\) is large.
 
 Instead, perform **SVD**:
-$$
+$
 X_c = U\, S\, V^\top
-$$
+$
 Then:
-$$
+$
 X_c^\top X_c \;=\; V\, S^2\, V^\top
-$$
+$
 
 Hence:
 - **Principal directions:** columns of \(V\)  
 - **Variance per component:** \(S_i^2/(m-1)\)  
 - **Explained variance ratio:**  
-  $$
+  $
   r_i \;=\; \frac{S_i^2}{\sum_j S_j^2}
-  $$
+  $
 
 ---
 
 ## 7️⃣ Selecting the Number of Components (k)
 Cumulative explained variance ratio:
-$$
+$
 R_k \;=\; \frac{\sum_{i=1}^{k} S_i^2}{\sum_{i=1}^{r} S_i^2}
-$$
+$
 
 Choose the smallest \(k\) such that \(R_k \ge 0.95\).
 
@@ -222,14 +220,14 @@ X_rec = Z @ V_k.T + X.mean(axis=0)
 ## 🔟 Key Takeaways (Cheat Sheet)
 | Concept | Expression | Meaning |
 |----------|-------------|----------|
-| Projection of a point | $$z_i = x_i^\top u$$ | Coordinate of \(x_i\) along direction \(u\) |
-| Variance along \(u\) | $$\mathrm{Var}(z) = u^\top \Sigma u$$ | How widely data spread along \(u\) |
-| Optimization | $$\max_u u^\top \Sigma u \ \text{s.t.}\ \|u\|=1$$ | Find the most informative direction |
-| Eigen equation | $$\Sigma u = \lambda u$$ | \(u\): direction; \(\lambda\): variance |
-| SVD link | $$X_c = U S V^\top$$ | \(V\) gives principal directions |
-| Variance from SVD | $$S_i^2/(m-1)$$ | Variance explained by component \(i\) |
-| Explained var. ratio | $$S_i^2 \Big/ \sum_j S_j^2$$ | Fraction of total variance |
-| Cumulative ratio | $$\sum_{i\le k} S_i^2 \Big/ \sum_j S_j^2$$ | Info kept by first \(k\) components |
-| Projection matrix | $$U_k \in \mathbb{R}^{n\times k}$$ | New basis (orthonormal) |
-| Low-dim data | $$Z = X_c U_k$$ | Shape \((m, k)\) |
+| Projection of a point | $z_i = x_i^\top u$ | Coordinate of \(x_i\) along direction \(u\) |
+| Variance along \(u\) | $\mathrm{Var}(z) = u^\top \Sigma u$ | How widely data spread along \(u\) |
+| Optimization | $\max_u u^\top \Sigma u \ \text{s.t.}\ \|u\|=1$ | Find the most informative direction |
+| Eigen equation | $\Sigma u = \lambda u$ | \(u\): direction; \(\lambda\): variance |
+| SVD link | $X_c = U S V^\top$ | \(V\) gives principal directions |
+| Variance from SVD | $S_i^2/(m-1)$ | Variance explained by component \(i\) |
+| Explained var. ratio | $S_i^2 \Big/ \sum_j S_j^2$ | Fraction of total variance |
+| Cumulative ratio | $\sum_{i\le k} S_i^2 \Big/ \sum_j S_j^2$ | Info kept by first \(k\) components |
+| Projection matrix | $U_k \in \mathbb{R}^{n\times k}$ | New basis (orthonormal) |
+| Low-dim data | $Z = X_c U_k$ | Shape \((m, k)\) |
 
