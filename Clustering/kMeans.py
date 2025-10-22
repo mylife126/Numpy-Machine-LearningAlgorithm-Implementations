@@ -54,7 +54,7 @@ class KMeans():
                     # print(sample, whichCenter)
                     dist = self.euclidian(sample, whichCenter)
                     distances.append(dist)
-                #after find all the distanced between tis datapoint and centroids, we only want to have
+                #after find all the distanced between this datapoint and centroids, we only want to have
                 #the minimal distance. Argmin is used to find the index
                 assignedCenter = np.argmin(distances)
 
