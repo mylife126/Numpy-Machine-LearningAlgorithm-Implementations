@@ -76,6 +76,34 @@ Summary:
 最后就会得到多个context outputs， 那么假设context的维度是 seq_length by q_v, concat 得到了 seq_length by q_v*k
 
 一个很长的context feature， 这个时候用output linear transformation将其转换到 m by qv即可
+
+
+(1) 原始文本:
+"I love cats"
+
+      │
+      ▼
+(2) Tokenizer
+[101, 2057, 3568, 102] → (batch, seq_len)
+
+      │
+      ▼
+(3) Embedding
+nn.Embedding(vocab_size, d_model)
+→ (batch, seq_len, d_model)
+
+      │
+      ▼
+(4) + Positional Encoding
+(seq_len, d_model)
+→ X_input = X + PE  ✅ 进入 Attention 前的输入
+
+      │
+      ▼
+(5) Linear Projections
+Q = XW_Q → (batch, seq_len, d_k)
+K = XW_K → (batch, seq_len, d_k)
+V = XW_V → (batch, seq_len, d_v)
 """
 
 import torch

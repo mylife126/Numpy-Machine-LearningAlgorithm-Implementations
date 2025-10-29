@@ -1,3 +1,150 @@
+🧩 1️⃣ Linear Regression （最基本模型）
+
+🧮 Loss（MSE）
+
+$J(\theta) = \frac{1}{2m}\|X\theta - y\|^2$
+或
+$J(\theta) = \frac{1}{2m}(X\theta - y)^T(X\theta - y)$
+
+⚙️ Gradient
+
+$\nabla_\theta J = \frac{1}{m} X^T(X\theta - y)$
+
+✅ 说明：
+	•	优化目标是最小化均方误差；
+	•	可以用解析解 $\theta = (X^TX)^{-1}X^Ty$，
+也可以用梯度下降；
+	•	损失函数是凸函数，所以 GD 一定收敛到全局最优。
+
+⸻
+
+🧩 2️⃣ Ridge Regression （L2 正则化线性回归）
+
+🧮 Loss
+
+$J(\theta) = \frac{1}{2m}\|X\theta - y\|^2 + \frac{\lambda}{2m}\|\theta\|^2$
+
+⚙️ Gradient
+
+$\nabla_\theta J = \frac{1}{m}X^T(X\theta - y) + \frac{\lambda}{m}\theta$
+
+✅ 说明：
+	•	额外项 $\frac{\lambda}{2m}\|\theta\|^2$ 是 L2 正则；
+	•	可以防止过拟合，使权重变小；
+	•	解析解为 $\theta = (X^TX + \lambda I)^{-1}X^Ty$。
+
+⸻
+
+🧩 3️⃣ Lasso Regression （L1 正则化线性回归）
+
+🧮 Loss
+
+$J(\theta) = \frac{1}{2m}\|X\theta - y\|^2 + \frac{\lambda}{m}\|\theta\|_1$
+
+⚙️ Gradient / Subgradient
+
+$\nabla_\theta J = \frac{1}{m}X^T(X\theta - y) + \frac{\lambda}{m}\,\text{sign}(\theta)$
+
+✅ 说明：
+	•	L1 正则项的导数不是连续的 → 用 subgradient（符号函数 sign）；
+	•	会产生稀疏解（部分权重变 0）；
+	•	常用优化器：坐标下降 (Coordinate Descent) 或 Proximal GD。
+
+⸻
+
+🧩 4️⃣ Logistic Regression （二分类）
+
+🧮 Sigmoid
+
+$\hat{p} = \sigma(X\theta) = \frac{1}{1 + e^{-X\theta}}$
+
+🧮 Loss（Cross-Entropy / Negative Log Likelihood）
+
+$J(\theta) = -\frac{1}{m}\sum_i [y_i \log(\hat{p_i}) + (1 - y_i)\log(1 - \hat{p_i})]$
+
+⚙️ Gradient
+
+$\nabla_\theta J = \frac{1}{m}X^T(\hat{p} - y)$
+
+✅ 说明：
+	•	MSE 在 sigmoid 情况下收敛慢，Cross-Entropy 是标准形式；
+	•	梯度与线性回归形式相同，只是 $\hat{y}$ 不同；
+	•	损失是凸函数，GD 可收敛到全局最优。
+
+⸻
+
+🧩 5️⃣ Ridge Logistic Regression（L2 正则 Logistic）
+
+🧮 Loss
+
+$J(\theta) = -\frac{1}{m}\sum_i [y_i \log(\hat{p_i}) + (1 - y_i)\log(1 - \hat{p_i})] + \frac{\lambda}{2m}\|\theta\|^2$
+
+⚙️ Gradient
+
+$\nabla_\theta J = \frac{1}{m}X^T(\hat{p} - y) + \frac{\lambda}{m}\theta$
+
+✅ 说明：
+	•	常用于工业实践（防止过拟合）；
+	•	L2 正则不会让权重为零，但能控制规模；
+	•	如果希望稀疏，可以改成 L1。
+
+⸻
+
+🧩 6️⃣ Softmax Regression（多分类 Logistic）
+
+🧮 Softmax 函数
+
+$\hat{p}{ik} = \frac{e^{z{ik}}}{\sum_j e^{z_{ij}}}$, $\quad z = XW$
+其中：
+	•	W 的形状是 (n_features, n_classes)
+	•	\hat{p}_{ik} 是样本 i 属于类别 k 的概率
+
+🧮 Loss（多类 Cross-Entropy）
+
+$J(W) = -\frac{1}{m}\sum_i \sum_k y_{ik}\log(\hat{p}{ik})$
+其中 $y{ik}$ 是 one-hot label。
+
+⚙️ Gradient
+
+$\nabla_W J = \frac{1}{m}X^T(\hat{P} - Y)$
+
+✅ 说明：
+	•	跟 logistic regression 几乎一样，只是 sigmoid→softmax；
+	•	Y 是 one-hot 矩阵；
+	•	这就是神经网络最后一层 softmax 的梯度公式。
+
+⸻
+
+🧩 7️⃣ (Bonus) Poisson Regression（计数型 GLM）
+
+🧮 假设
+
+$y_i \sim \text{Poisson}(\lambda_i), \quad \lambda_i = e^{X_i\theta}$
+
+🧮 Loss（负对数似然）
+
+$J(\theta) = \frac{1}{m}\sum_i [e^{X_i\theta} - y_i(X_i\theta)]$
+
+⚙️ Gradient
+
+$\nabla_\theta J = \frac{1}{m}X^T(e^{X\theta} - y)$
+
+✅ 说明：
+	•	又是同样的形式： $X^T(\hat{y}-y)$，只不过 $\hat{y} = e^{X\theta}$
+
+![img.png](img.png)
+
+✅ 九、一句话总结
+
+所有这些模型都属于 广义线性模型（GLM） 框架：
+g(\mathbb{E}[y|x]) = X\theta
+它们的梯度都具有类似的结构：
+\nabla_\theta J = X^T(\hat{y} - y) + \text{(regularization term)}
+唯一区别在于：
+	•	link function（linear / sigmoid / softmax / exp）
+	•	loss 的形式（MSE / Cross-Entropy / NLL）
+	•	正则化项（L1/L2）
+
 
 # 🙋1 GRADIENT DESCENT TYPES
 ========================
@@ -491,3 +638,19 @@ You can say:
 > Cross Validation estimates performance,  
 > Grid Search tunes complexity,  
 > and Bias–Variance Tradeoff explains *why* their balance determines generalization.
+
+
+## Cross entropy loss
+🧩 一、Cross Entropy 是个“大框架”
+
+Cross Entropy（交叉熵）是一个通用的分布差异度量函数：
+
+$H(p, q) = -\sum_i q_i \log(p_i)$
+
+	•	q_i：真实分布（真实标签 one-hot）
+	•	p_i：模型预测分布（经过 softmax / sigmoid）
+
+它衡量：
+
+模型预测分布 p 距离真实分布 q 有多远。
+当 p=q 时，交叉熵最小。
