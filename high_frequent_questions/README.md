@@ -474,9 +474,7 @@ select θ* = argmax(mean_score)
 
 ### 🧩 Example: Ridge Regression
 
-\[
-J(\theta) = \text{MSE} + \lambda \sum_i \theta_i^2
-\]
+$[J(\theta) = \text{MSE} + \lambda \sum_i \theta_i^2 ]$
 
 | λ (Regularization) | Model Complexity | Bias | Variance |
 |---------------------|------------------|-------|-----------|
