@@ -249,7 +249,7 @@ $\Sigma = \frac{1}{m}\, X_c^\top X_c$
 
 ## 4️⃣ Lagrange Multiplier ⇒ Eigenvalue Problem
 Maximize $(u^\top \Sigma u)$ subject to $(\|u\|=1)$:
-$\mathcal{L}(u,\lambda) = u^\top \Sigma u \;-\; \lambda (u^\top u - 1)$
+$\mathcal{L}(u,\lambda) = u^\top \Sigma u  - \lambda (u^\top u - 1)$
 Set derivative to zero:
 $2\Sigma u - 2\lambda u = 0 \quad\Rightarrow\quad \Sigma u = \lambda u$
 
