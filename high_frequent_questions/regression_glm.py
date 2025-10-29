@@ -1,5 +1,3 @@
-
-
 import numpy as np
 from sklearn.datasets import make_classification
 
@@ -152,10 +150,6 @@ class RegressionGLM():
             return X @ self.thetas
         else:
             raise ValueError("Unsupported regression type")
-
-
-import numpy as np
-
 
 def train_test_split(X, y, test_size=0.2, shuffle=True, random_state=None):
     """
