@@ -43,6 +43,8 @@ x + y, x- y, -x +y, -x - y
 
 那么我们可以把每一个2D point 都分别在四个方向上做转换， 将其变成一个1D的case， 然后再排序近邻的问题，就等同于1D的case了
 等同于一个2D数组会变成4个数组，
+
+假设如下数组
 0 0
 0 2
 2 0
@@ -51,6 +53,7 @@ x + y, x- y, -x +y, -x - y
 
 -> 在 x+y的方向上 [0, (0, 0,)], [2, [0, 2]], [2, [2,0]], [4, [2,2,]], [10, [5,5]]
 然后在这个方向上做排序得到近邻，然后再做点和点的距离计算 更新距离array
+然后对四个方向做同样的事情就可
 
 """
 
@@ -114,3 +117,17 @@ def sorted_manhattan_dist_in_2D(nums):
             mins_distance[index_2] = min(mins_distance[index_2], manhattan_dist_in_2D(coordinate_1, coordinate_2))
 
     return mins_distance
+
+# ==================== TEST ====================
+if __name__ == "__main__":
+    pts = np.array([
+        [0, 0],
+        [0, 2],
+        [2, 0],
+        [2, 2],
+        [5, 5]
+    ])
+
+    print("Input points:\n", pts)
+    result = minimal_manhattan_distance_2D(pts)
+    print("Minimal Manhattan distance for each point:\n", result)

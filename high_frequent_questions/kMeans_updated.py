@@ -9,6 +9,27 @@ Key point:
 2. euclidean distance between each pair of clusters calculation
 3. hash to save the distance to points
 
+1️⃣ 肘部法（Elbow Method）
+	•	计算不同 K 下的总平方误差（SSE）：
+SSE(K) = \sum_i \|x_i - \mu_{c_i}\|^2
+	•	随 K 增大，SSE 会一直下降；
+	•	找到“弯曲点”（拐点）作为最佳 K。
+
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+
+sse = []
+for k in range(1, 10):
+    km = KMeans(n_clusters=k, random_state=42)
+    km.fit(X)
+    sse.append(km.inertia_)
+
+plt.plot(range(1, 10), sse, marker='o')
+plt.xlabel("K")
+plt.ylabel("SSE (Inertia)")
+plt.title("Elbow Method")
+plt.show()
+
 """
 
 import numpy as np
@@ -26,6 +47,7 @@ class KMeans():
         self.data = X
         self.m, self.n = X.shape[0], X.shape[1]
         self.centroids = self.init_k_kmeanspp()
+        self.sse_history = []  # 存储每次迭代后的 SSE 变化
 
     def init_k(self):
         all_zeros = np.zeros((self.n_clusters, self.m, self.n))  # k by n
@@ -116,7 +138,18 @@ class KMeans():
             distance = np.sum((x - y) ** 2, axis=1)
         return np.sqrt(distance)
 
-    def fit(self, X, max_iter=100):
+    def compute_sse(self, assignments):
+        """
+        assignments: 每个点的簇编号 (m,)
+        计算当前簇分配下的总平方误差 (SSE)
+        """
+        sse = 0.0
+        for i, x in enumerate(self.data):
+            center = self.centroids[assignments[i]]
+            sse += np.sum((x - center) ** 2)  # 注意这里不要取 sqrt，否则不是平方误差
+        return sse
+
+    def fit(self, X, max_iter=100, tol=1e-4):
         for iter in range(max_iter):
             center2points = defaultdict(list)
             # Step 1 : E, get the centroids updated
@@ -136,6 +169,15 @@ class KMeans():
                 feature_wise_avg = np.mean(all_points, axis=0)  # avg out along the row -> shape (n,)
                 new_center = feature_wise_avg
                 self.centroids[center] = new_center
+
+            # Step 3: Compute SSE (for elbow)
+            sse = self.compute_sse(index)
+            self.sse_history.append(sse)
+
+            # Step 4: Check convergence (if centroids stop moving)
+            if iter > 0 and abs(self.sse_history[-2] - sse) < tol:
+                print(f"Converged at iteration {iter}")
+                break
 
     def predict(self, X):
         distances = []
@@ -166,8 +208,7 @@ if __name__ == '__main__':
     kmeans = KMeans(4, X)
     kmeans.fit(X, 100)
 
-
     x = np.array([[11, 3], [-1, 3.1]])
     index = kmeans.predict(x)
 
-    kmeans.plot_clusters(X,x)
+    kmeans.plot_clusters(X, x)

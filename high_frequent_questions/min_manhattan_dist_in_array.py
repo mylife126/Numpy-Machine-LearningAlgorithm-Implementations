@@ -17,8 +17,6 @@ d(a_i, a_j) = |a_i - a_j|
 所以更快的方案是sorted array nlogn后 做左右对比即可
 
 """
-
-
 # brutal force. 对于每一个数字，对其他的数字进行对比，然后找取其最短距离
 def manhattan_distance(a, b):
     return abs(a - b)
@@ -61,12 +59,6 @@ def sorted_manhattan_distance(nums):
 
     return each_dist
 
-
-
-
 if __name__ == "__main__":
     nums = [8, 1, 5, 10]
     print(min_manhattan_distance(nums))
-
-
-
