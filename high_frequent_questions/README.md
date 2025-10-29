@@ -214,7 +214,7 @@ where:
 - \(m\) = number of samples  
 - \(n\) = number of features  
 
-**Goal:** Find a low-dimensional representation \(Z \in \mathbb{R}^{m \times k}\) (where \(k < n\)) that preserves as much variance (information) as possible.
+**Goal:** Find a low-dimensional representation $(Z \in \mathbb{R}^{m \times k}) (where (k < n))$ that preserves as much variance (information) as possible.
 
 We seek a transformation matrix:
 $U_k \in \mathbb{R}^{n \times k}$
@@ -237,7 +237,7 @@ $\max_{u}\ \mathrm{Var}(X_c u)\quad \text{s.t. } \|u\|=1$
 For each data point \(x_i\), its projection onto \(u\) is a scalar:
 $z_i = x_i^\top u$
 
-Since the data are centered (\(\bar z = 0\)):
+Since the data are centered $(\bar z = 0)$:
 $\mathrm{Var}(z) = \frac{1}{m}\sum_{i=1}^m (x_i^\top u)^2$
 
 Matrix form:
@@ -248,16 +248,16 @@ $\Sigma = \frac{1}{m}\, X_c^\top X_c$
 ---
 
 ## 4️⃣ Lagrange Multiplier ⇒ Eigenvalue Problem
-Maximize \(u^\top \Sigma u\) subject to \(\|u\|=1\):
+Maximize $(u^\top \Sigma u)$ subject to $(\|u\|=1)$:
 $\mathcal{L}(u,\lambda) = u^\top \Sigma u \;-\; \lambda (u^\top u - 1)$
 Set derivative to zero:
 $2\Sigma u - 2\lambda u = 0 \quad\Rightarrow\quad \Sigma u = \lambda u$
 
 **Therefore:**
-- \(u_i\): eigenvectors of \(\Sigma\) (principal component directions)  
-- \(\lambda_i\): eigenvalues = variance explained by each component  
+- $(u_i)$: eigenvectors of \(\Sigma\) (principal component directions)  
+- $(\lambda_i)$: eigenvalues = variance explained by each component  
 
-Sort eigenvalues in descending order, take the top \(k\) eigenvectors → \(U_k\).
+Sort eigenvalues in descending order, take the top \(k\) eigenvectors → $(U_k)$.
 
 ---
 

@@ -104,7 +104,7 @@ class RegressionGLM():
         for i in range(iterations):
             idx = np.random.randint(0, self.X.shape[0] - 1)
             x_idx = self.X[idx: idx + 1]  # cannot use self.X[idx]. this will break the dim to be (n,) instead of 1 by n
-            y_idx = self.y[idx: idx + 1] # cannot use self.X[idx]. this will break the dim to be (n,) instead of 1 by n
+            y_idx = self.y[idx: idx + 1]  # cannot use self.X[idx]. this will break the dim to be (n,) instead of 1 by n
             if self.which_regression == "regression":
 
                 loss, grad, pred = self.ridge_regression(x_idx, y_idx)
@@ -123,18 +123,37 @@ class RegressionGLM():
 
             else:
                 raise ValueError("Unsupported regression type")
-    '''
-    def mini_bath_sgd(self, iterations=100):
-        batch_size = 64
+
+    def fit_minibatch(self, batch_size=64, iterations=10):
+        """
+        Mini-batch gradient descent
+        - Split data into batches of given size
+        - Compute gradient per batch
+        - Update θ after each batch
+        """
+        m = self.X.shape[0]
         for epoch in range(iterations):
-            for start in range(0, self.X.shape[0], batch_size):
-                X_batch = X[start:start + batch_size]
-                y_batch = y[start:start + batch_size]
-                grad = compute_grad(X_batch, y_batch)
-                theta -= lr * grad
-                
-        pass
-    '''
+            # shuffle at the beginning of each epoch
+            indices = np.random.permutation(m)
+            X_shuffled = self.X[indices]
+            y_shuffled = self.y[indices]
+            for start in range(0, m, batch_size):
+                end = start + batch_size
+                X_batch = X_shuffled[start:end]
+                y_batch = y_shuffled[start:end]
+
+                if self.which_regression == "logistic":
+                    loss, grad, _ = self.logistic_regression(X_batch, y_batch)
+                elif self.which_regression == "regression":
+                    loss, grad, _ = self.ridge_regression(X_batch, y_batch)
+                elif self.which_regression == "lasso":
+                    loss, grad, _ = self.lasso_regression(X_batch, y_batch)
+                else:
+                    raise ValueError("Unsupported regression type")
+
+                self.gradient_descent(grad)
+
+            print(f"Epoch {epoch}, last batch loss: {loss}")
 
     def predict(self, X, threshold=0.5):
         """
@@ -150,6 +169,7 @@ class RegressionGLM():
             return X @ self.thetas
         else:
             raise ValueError("Unsupported regression type")
+
 
 def train_test_split(X, y, test_size=0.2, shuffle=True, random_state=None):
     """
