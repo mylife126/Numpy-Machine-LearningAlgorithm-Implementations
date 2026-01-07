@@ -51,9 +51,3 @@ class Solution(object):
                 merged.append(current)
 
         return merged
-
-
-
-
-
-        

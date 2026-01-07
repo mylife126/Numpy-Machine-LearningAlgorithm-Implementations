@@ -26,4 +26,4 @@ class Solution(object):
         return "".join(num_str)
     
     def compare(self, num1, num2):
-        return str(num1) + str(num2) > str(num2) + str(num1)
+        return str(num1) + str(num2) < str(num2) + str(num1)
