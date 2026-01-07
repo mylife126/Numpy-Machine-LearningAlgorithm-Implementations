@@ -108,9 +108,9 @@ class AttentionNumpy():
         X -> batch, sequence length (m), model_dim
         """
 
-        Q = X @ self.W_q
-        K = X @ self.W_k
-        V = X @ self.W_v
+        Q = X @ self.W_q # batch by m by dq
+        K = X @ self.W_k # m by dk
+        V = X @ self.W_v # m by dv
 
         k = np.sqrt(self.d_k)
 
