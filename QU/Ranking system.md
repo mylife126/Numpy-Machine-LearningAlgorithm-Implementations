@@ -929,7 +929,7 @@ T 的常见确定方式（不是拍脑袋）
 
 👉 T 取两个峰之间的 valley
 
-![img.png](img.png)
+![img.png](../ML%20knowledge%20in%20ranking%20search%20cvr%20and%20recsys/img.png)
 
 这在 enterprise search 非常常见，也非常好 defend。
 
