@@ -294,6 +294,7 @@ and user context rather than textual similarity alone.”
 
 Jira / Confluence search 的 ranking，本质上还是 learning-to-rank，
 但它和 Amazon CTR 的最大差别在于：
+
 	•	label 极其稀疏
 	•	正负样本不干净
 	•	不能人工校验
@@ -307,6 +308,7 @@ Jira / Confluence search 的 ranking，本质上还是 learning-to-rank，
 二、先用你熟悉的 Amazon CTR 来对齐直觉
 
 Amazon Ads / Search（你过去）
+
 	•	一个 impression
 	•	一个 item
 	•	label：
@@ -323,6 +325,7 @@ Amazon Ads / Search（你过去）
 Enterprise Search（Atlassian）
 
 问题在于：
+
 	•	没有明确的“曝光位”
 	•	一个 query 返回多个文档
 	•	用户可能：
@@ -411,6 +414,7 @@ A > B
 ⸻
 
 常见 loss
+
 	•	hinge loss
 	•	logistic loss（RankNet）
 
@@ -419,21 +423,25 @@ A > B
 为什么 enterprise 非常适合 pairwise？
 
 因为：
+
 	•	你很难判断绝对相关性
 	•	但你更容易判断相对偏好
 
 👉 例如：
+
 	•	用户点了 doc A，却没点 doc B
 → A 相对更好（大概率）
 
 ⸻
 
 优点
+
 	•	抗噪声能力强
 	•	不需要绝对 label
 	•	更符合真实用户行为
 
 缺点
+
 	•	样本构造复杂
 	•	训练成本高
 	•	online 推断仍是 pointwise
