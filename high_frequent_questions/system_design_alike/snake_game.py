@@ -99,7 +99,6 @@ class SnakeGame:
 
 ## Limiter snake game
 from collections import deque
-
 class SlidingWindowRateLimiter(object):
     def __init__(self, max_calls, window_seconds, now_fn):
         self.max_calls = max_calls

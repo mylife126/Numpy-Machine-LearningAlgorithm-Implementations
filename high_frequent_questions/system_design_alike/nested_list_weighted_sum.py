@@ -136,7 +136,7 @@ class Solution(object):
             total += level_sum
 
         return total
-    
+
 if __name__ == "__main__":
     sol = Solution()
 
