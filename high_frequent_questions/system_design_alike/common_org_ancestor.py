@@ -68,6 +68,26 @@ company | -> sales
                   |-> infra
 """
 
+
+"""
+# build ancestor_set for first org
+ancestor_set = ancestors(org0)
+
+lca_so_far = org0
+
+for org in org_list[1:]:
+    cur = org
+    while cur is not None and cur not in ancestor_set:
+        cur = parent[cur]
+
+    if cur is None:
+        return None
+
+    lca_so_far = cur
+    ancestor_set = ancestors(lca_so_far)
+
+return lca_so_far
+"""
 class Solution(object):
     def lowestCommonGroupForEmployees(self, employees, employee2org):
         if employees is None or len(employees) == 0:
