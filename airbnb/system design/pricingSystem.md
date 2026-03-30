@@ -26,6 +26,7 @@ $Revenue = price \cdot P(book \mid x, price)$
 
 ---
 
+```
 Pipeline（你脑子里要有这张图）
 
 Listing + Context
@@ -35,7 +36,7 @@ Demand Model: P(book | x, price)
 Price Simulation (try multiple prices)
       ↓
 argmax price * P(book | x, price)
-
+```
 
 ---
 
