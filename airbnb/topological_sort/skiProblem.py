@@ -302,6 +302,96 @@ class Solution:
         print(dp)
         return max_score
 
+
+from collections import defaultdict, deque
+
+
+class Solution2(object):
+    def maxScore(self, travel, points, start):
+        """
+        travel: List of [from, cost, to]
+        points: List of [node, reward]
+        start: starting node (string)
+        """
+
+        # ----------------------------------------
+        # Step1: build graph + indegree
+        # ----------------------------------------
+        graph = defaultdict(list)
+        indegree = defaultdict(int)
+        nodes = set()
+
+        for u, cost, v in travel:
+            graph[u].append((v, int(cost)))
+            indegree[v] += 1
+            nodes.add(u)
+            nodes.add(v)
+
+        # ensure all nodes exist in indegree
+        for node in nodes:
+            if node not in indegree:
+                indegree[node] = 0
+
+        # ----------------------------------------
+        # Step2: build reward map
+        # ----------------------------------------
+        reward = defaultdict(int)
+        for node, val in points:
+            reward[node] = int(val)
+
+        # ----------------------------------------
+        # Step3: topological sort
+        # ----------------------------------------
+        queue = deque()
+        for node in nodes:
+            if indegree[node] == 0:
+                queue.append(node)
+
+        topo_order = []
+
+        while queue:
+            current = queue.popleft()
+            topo_order.append(current)
+
+            for neighbor, cost in graph[current]:
+                indegree[neighbor] -= 1
+                if indegree[neighbor] == 0:
+                    queue.append(neighbor)
+
+        # ----------------------------------------
+        # Step4: DP initialization
+        # ----------------------------------------
+        dp = {node: float('-inf') for node in nodes}
+        dp[start] = 0  # start has no reward
+
+        # ----------------------------------------
+        # Step5: DP over topo order
+        # ----------------------------------------
+        for node in topo_order:
+
+            if dp[node] == float('-inf'):
+                continue
+
+            for neighbor, cost in graph[node]:
+
+                # when moving to neighbor:
+                # gain reward[neighbor], lose cost
+                new_score = dp[node] + reward[neighbor] - cost
+
+                if new_score > dp[neighbor]:
+                    dp[neighbor] = new_score
+
+        # ----------------------------------------
+        # Step6: find terminal nodes (no outgoing edges)
+        # ----------------------------------------
+        max_score = float('-inf')
+
+        for node in nodes:
+            if node not in graph or len(graph[node]) == 0:
+                max_score = max(max_score, dp[node])
+
+        return max_score
+
 if __name__ == '__main__':
     travel = [
         ["start", "2", "A"],
@@ -317,5 +407,8 @@ if __name__ == '__main__':
         ["END2", "2"]
     ]
     solution = Solution()
+    solution2 = Solution2()
     print(solution.max_score_ski_path(travel, points))
+    print(solution2.maxScore(travel, points, "start"))
+
     # expected: 4
