@@ -851,3 +851,508 @@ For feature drift, scalar features can be monitored using PSI, while embeddings 
 If drift is detected, I would distinguish between upstream data bugs and real distribution shifts, then either fix the pipeline, retrain the downstream model, recalibrate, or roll back the embedding version if needed.
 
 ⸻
+## 容易被问到的问题
+可以。我先把你这轮面试里被 challenge 的核心问题抽出来，再给你每个问题一版更好的回答，最后给你一组明天还能直接用的话术建议。
+
+⸻
+
+### 一、这轮面试里你真正被 challenge 的点
+
+我看下来，主要有 4 个。
+
+1. Non-personalized ranker 的数据怎么收集、怎么切 train/test
+
+你当时说的是 split by customer。
+这不是完全错，但不够贴题。因为 ranker 的基本预测单位不是 customer，而是一次 search request 下的一组 candidates。
+
+面试官纠结这个问题，说明他想确认你有没有真正理解：
+
+	•	ranker 的 training instance 是什么
+	•	label 是怎么来的
+	•	为什么 test set 要模拟真实线上分布
+	•	为什么不能随便 random split
+
+⸻
+
+2. Sparse / high-cardinality feature（例如 amenities）怎么处理
+
+你给了三个方向：
+
+	•	从模型复杂度解决
+	•	heuristic 按 locale 选 feature
+	•	embedding self-denoise
+
+这里的问题不是你没思路，而是表述还不够硬。
+面试官更想听的是：
+
+	•	稀疏问题本质是什么
+	•	你用什么具体方法建模
+	•	怎么让低频 feature 不学坏
+	•	heuristic 是主方案还是补充方案
+
+⸻
+
+3. 为什么 host / listing / query 放进 universal embedding，而 personalized 单独拿出去
+
+你回答了：
+
+	•	这几个 non-personalized feature 有 inherent correlation
+	•	personalized 单独拆出去可以减少 latency
+	•	后面如果有问题再引入 gating / 更多 head
+
+方向是对的，但还可以更清晰。
+面试官这里其实在看你是否能讲明白：
+
+	•	建模角色为什么不同
+	•	系统设计上为什么拆开更合理
+	•	为什么不是一开始全耦合在一起
+
+⸻
+
+4. 你整体节奏不错，但有些地方术语偏“感觉正确”，不够“生产级”
+
+比如：
+
+	•	complexity
+	•	self-denoise
+	•	heuristic
+	•	domain seesaw
+
+这些词不是不能说，而是一旦 interviewer 往下追问，你要能立刻翻译成具体机制。
+否则容易给人感觉“方向是对的，但做得不够深”。
+
+⸻
+
+### 二、每个问题的更好回答
+
+下面我按“问题 -> 好回答 -> 技术讲解”的方式整理。
+
+⸻
+
+1）Ranker 的数据收集与 train/test split
+
+这个问题你更好的回答
+
+如果这个 ranker 是 non-personalized，我不会把 customer 当作主要 sample unit。
+我会把 一次 search request 当作基本训练单元。
+
+因为 ranker 的任务是：
+
+	•	给定一个 search query / request context
+	•	对这一组 candidate listings 排序
+
+所以训练数据应该按 search request group 来组织，而不是按 customer 来组织。
+
+数据收集上，我会从历史 search logs 里收集：
+
+	•	query / context：locale, check-in/out, guests, filters, device
+	•	candidate/listing 特征：price, rating, review, amenities, availability 等
+	•	exposure 信息：哪些 listing 被展示了，展示位置是什么
+	•	label：click, long click, save, booking
+
+训练时我主要使用 exposed items，因为没有曝光的 item 不能直接当负样本。
+
+在 split 上，我的主方案会是：
+
+	•	按 search request group 切分
+	•	并且最好 forward in time holdout
+
+也就是：
+
+	•	用较早时间的数据训练
+	•	用之后一段时间做 validation
+	•	再用更后面的时间做 test
+
+而不是把同一个时期的数据随机打散。
+
+⸻
+
+### 技术讲解（简洁版）
+
+什么叫 split by search request group
+
+一次搜索，比如：
+
+	•	Paris
+	•	2 guests
+	•	Apr 10–Apr 14
+	•	price < 300
+
+系统会生成一组 candidate listings，并展示 top K。
+这整个搜索请求就是一个 request group。
+
+一个 group 里面有很多 item。
+切分时要保证：
+
+	•	同一个 request_id 下的所有 items 只能出现在 train 或 test 的其中一边
+	•	不能一部分在 train，一部分在 test
+
+因为 ranking 是 group task，不是独立样本分类任务。
+
+⸻
+
+什么叫 forward in time holdout
+
+就是 按时间往前切：
+
+	•	Train：过去一段时间
+	•	Valid：更近的一段时间
+	•	Test：最新的一段时间
+
+例如：
+
+	•	Train: Jan-Feb
+	•	Valid: early Mar
+	•	Test: late Mar
+
+为什么这么做？
+
+因为线上部署时，你永远是：
+
+	•	用过去训练模型
+	•	在未来流量上预测
+
+所以 test set 最好也模拟这个场景。
+这就比 random split 更接近真实线上表现。
+
+⸻
+
+为什么不是 split by customer
+
+因为 non-personalized ranker 不依赖 customer history，
+所以它要 generalize 的重点不是“新用户”，而是“新的 search requests / future traffic”。
+
+customer split 只能作为补充 sanity check，
+不能作为主 split。
+
+⸻
+
+你明天可以直接说的话术
+
+For a either personalized or non-personalized ranker, I’d define the training unit at the search-request level rather than the customer level. I’d train on exposed impression groups with engagement labels, and my main offline evaluation would be a forward-in-time holdout by request group, because that best matches future serving traffic.
+
+⸻
+
+2）Sparse / high-cardinality feature，例如 amenities，怎么处理
+
+这个问题你更好的回答
+
+Amenities 这类 feature 本质上是：
+
+	•	sparse
+	•	multi-hot
+	•	high-cardinality
+	•	long-tail
+
+我不会只用 raw one-hot 去建模，因为这样低频 feature 很难学稳，也没法利用 feature 之间的相似性。
+
+我的主方案会是：
+
+	1.	给 amenity 做 embedding
+	2.	对一个 listing 的多个 amenities 做 pooling 比如 sum / mean / attention pooling
+	3.	对低频 amenity 做 threshold 或合并到 other bucket
+	4.	加 regularization，比如 embedding dropout / L2
+
+如果我有产品 taxonomy，我还会做 hierarchical grouping，
+例如把 amenities 归到：
+
+	•	kitchen
+	•	family-friendly
+	•	workspace
+	•	luxury
+	•	accessibility
+
+这样模型能在相似 amenities 之间共享统计强度。
+
+至于 locale-specific heuristic，我会把它当作补充 guardrail，不会当主方案。
+
+⸻
+
+技术讲解（简洁版）
+
+为什么 one-hot 不够
+
+因为 amenity 很多，且很多都很稀有。
+直接 one-hot 的问题是：
+
+	•	低频 amenity 没有足够样本学权重
+	•	“wifi”和“fast wifi”这种相关性学不出来
+	•	feature 空间太稀疏
+
+⸻
+
+为什么 embedding 更好
+
+embedding 的好处是：
+
+	•	把离散稀疏特征映射到 dense vector
+	•	相似 amenity 可以在 embedding space 里共享信息
+	•	比每个 one-hot 单独学一个权重更稳
+
+⸻
+
+heuristic 按 locale 筛特征，好不好
+
+可以提，但要降级成次要方案。
+更好的说法是：
+
+	•	冷启动市场可作为先验
+	•	数据少时可做 guardrail
+	•	长期主方案还是 learned representation
+
+⸻
+
+你明天可以直接说的话术
+
+For sparse multi-hot features like amenities, I would not rely on raw one-hot alone. I’d learn amenity embeddings, pool them into a dense representation, bucket very rare values, and regularize the embedding table. In this way, similar amentities would share similar statistical strength also we can smooth out the semantic similarity such as "wifi" and "high speed wifi". Locale-aware heuristics can help as a fallback, but I would not make them the primary long-term solution.
+
+⸻
+
+3）为什么 universal embedding 放 host/listing/query，而 personalized 单独拆出去 PEPNet
+
+这个问题你更好的回答
+
+我会把 host、listing、query 放到一个 shared non-personalized tower 里，
+把 personalized signals 放到单独的 head 里，原因有三层。
+
+第一，建模角色不同
+
+	•	query / listing / host 学的是通用 relevance 和供需匹配
+	•	personalized signals 学的是 user-specific residual preference
+
+也就是说：
+
+	•	shared tower 负责“大家都觉得相关不相关”
+	•	personalized head 负责“这个用户额外偏不偏好”
+
+第二，系统角色不同
+
+non-personalized features 更稳定，更容易缓存或预计算；
+personalized features 更动态、更依赖在线用户状态，也更敏感于 latency。
+
+所以拆出来更容易：
+
+	•	serving
+	•	fallback
+	•	feature availability 管理
+	•	latency 控制
+
+第三，实验和 rollout 更清晰
+
+先上 base universal tower，再加 personalized residual head，
+可以清楚看到 personalization 带来的 incremental gain。
+
+如果后面发现 shared representation 出现负迁移，
+再引入 gating / MoE / domain-specific residual head。
+
+⸻
+
+技术讲解（简洁版）
+
+shared tower 在学什么
+
+主要是：
+
+	•	semantic match
+	•	quality prior
+	•	supply-demand relevance
+
+personalized head 在学什么
+
+主要是：
+
+	•	用户短期偏好
+	•	用户长期口味
+	•	个体 residual
+
+所以两者拆开是合理的，不是“为了拆而拆”。
+
+⸻
+
+你明天可以直接说的话术
+
+I separate the shared query-listing-host tower from personalization because they play different roles: the shared tower learns generic relevance, while the personalization head learns user-specific residual preference. It is also cleaner from a systems perspective because non-personalized features are easier to cache, while personalized features are more dynamic and latency-sensitive.
+
+⸻
+
+4）你被 challenge 的不是方向，而是“术语落地度”
+
+这个问题你更好的修正方式
+
+以后尽量少说这些单独悬空的词：
+
+	•	complexity
+	•	self-denoise
+	•	heuristic
+	•	domain seesaw
+
+说了也没问题，但要立刻接具体机制。
+
+例如：
+
+不要只说
+
+“embedding 可以 self-denoise”
+
+要说
+
+“embedding lets similar sparse categories share statistical strength, and I’d stabilize it with pooling, rare-bucket thresholding, and regularization”
+
+⸻
+
+不要只说
+
+“复杂模型可以解决 sparsity”
+
+要说
+
+“I’d move from raw sparse IDs to embedding-based representation learning, possibly with feature interactions only after I have stable dense representations”
+
+⸻
+
+不要只说
+
+“domain seesaw”
+
+要说
+
+“If the shared tower shows negative transfer or popular-domain dominance, I’d add gating or a domain-specific residual head”
+
+⸻
+
+三、你这轮面试表现里做得好的地方
+
+这个也要保留，因为你明天还要继续用。
+
+1. 你有主线，不是散点输出
+
+你先讲 architecture，再收窄到 ranker，再聊 feature / model，这是对的。
+
+2. 你没有一开始把所有复杂度堆满
+
+这也对。
+先讲 v1，再根据 challenge 升级到 v2/v3，这很像真正做系统的人。
+
+3. 你能让 interviewer 引导你往深处走
+
+这说明你不是在背稿，而是在共建答案。这个状态很好。
+
+⸻
+
+四、你明天 ML system design 最值得注意的建议
+
+我给你最实用的，不讲空话。
+
+建议 1：每个设计都先给一个“v1 简洁版”
+
+不要一开始就把所有 fancy 机制全放出来。
+
+开场可以这样说：
+
+I’ll start with a simple production-friendly v1, then I can layer in personalization, debiasing, or more advanced modeling if you want to go deeper.
+
+这句话很好用。
+
+⸻
+
+建议 2：一旦 interviewer 追问，就切到“问题-原因-方案-代价”
+
+例如他说：
+
+“为什么不直接把 personalized 信号也放进 shared tower？”
+
+你就按这个模板答：
+
+	•	问题：可以这么做
+	•	原因：但会带来在线依赖和耦合
+	•	方案：所以我先 modularize
+	•	代价：可能少掉部分 cross-feature gain，后续再看是否值得升级
+
+这个结构非常稳。
+
+⸻
+
+建议 3：少说抽象词，多说机制词
+
+把下面这些词尽量替换：
+
+	•	complexity → representation learning / regularization / modular serving
+	•	self-denoise → share statistical strength / reduce sparse overfitting
+	•	heuristic → guardrail / prior / fallback
+	•	domain seesaw → negative transfer / representation interference
+
+⸻
+
+建议 4：主动给 interviewer 两个下钻方向
+
+这样既显得你有全局，也避免你说太满。
+
+比如：
+
+There are two natural deep dives here: one is data and label construction, and the other is modeling and serving tradeoff. I’m happy to go either direction.
+
+这句话非常适合 system design。
+
+⸻
+
+建议 5：每说一个设计，都补一句“为什么先不上更复杂方案”
+
+这个很 senior。
+
+例如：
+
+I’m not starting with a tightly coupled joint architecture because I want clean ablation, easier debugging, and safer latency control in the first production version.
+
+这类句子会让你显得不是“不会高级方案”，而是“有意不先上”。
+
+⸻
+
+五、你明天可以直接复用的几个高频话术
+
+1. 先讲 v1
+
+I’ll start with a simple v1 that is easy to train, evaluate, and deploy, and then I can extend it if we identify clear failure modes.
+
+2. interviewer challenge 后承接
+
+That’s a good challenge. My initial design is optimized for simplicity and rollout safety, but if that becomes the bottleneck, here is how I would evolve it.
+
+3. 解释为什么拆模块
+
+I’m separating these components because they have different statistical roles and different serving constraints.
+
+4. 解释为什么不用更复杂方案
+
+I’m intentionally not starting with the most coupled architecture, because I want clean ablation, lower latency risk, and better debuggability.
+
+5. 解释数据切分
+
+My offline split should preserve the ranking group structure and ideally simulate future traffic, so I’d split by request group and evaluate with a forward-in-time holdout.
+
+⸻
+
+六、你今晚最该记住的精简版
+
+就记这 4 句。
+
+1  Ranker 的 sample unit 是 search request group，不是 customer。
+
+2  主评估最好是 forward-in-time holdout，而不是纯 random split。
+
+3  Sparse high-cardinality feature 的主方案是 embedding + pooling + rare bucket + regularization。
+
+4  Shared tower 学通用 relevance，personalized head 学 user-specific residual，所以先拆开更合理。
+
+⸻
+
+七、最后给你的一个临场建议
+
+你现在不是“不会答”，而是已经有对的 intuition，只需要再把表述压得更硬、更短、更像 production 决策。
+
+明天你可以刻意做一件事：
+
+每答完一个点，自己补一句 “why this first, why not something more complex yet.”
+
+只要你做到这一点，你整场会更稳。
+
+如果你愿意，我下一条直接给你做一版 “明天 ML system design 面试前 10 分钟速记稿”，只保留最该背的内容。
