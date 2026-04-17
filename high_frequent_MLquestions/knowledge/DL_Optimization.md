@@ -2360,7 +2360,7 @@ $\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
 🔍 二、矩阵形状解释
 
 假设输入 $X \in \mathbb{R}^{m \times d_{model}}$
-![img_1.png](img_1.png)
+![img_1.png](../img_1.png)
 
 💡 三、算法流程（中文思路）
 
@@ -2678,7 +2678,7 @@ $FFN(x) = \max(0, xW_1 + b_1)W_2 + b_2$
 ⸻
 
 #### 🧩 2️⃣ Transformer vs CNN / RNN（核心对比🔥）
-![img_3.png](img_3.png)
+![img_3.png](../img_3.png)
 
 🧠 关键 insight
 

@@ -144,7 +144,7 @@ $\nabla_\theta J = \frac{1}{m}X^T(e^{X\theta} - y)$
 
 	•	又是同样的形式： $X^T(\hat{y}-y)$，只不过 $\hat{y} = e^{X\theta}$
 
-![img.png](img.png)
+![img.png](../img.png)
 
 ✅ 九、一句话总结
 
@@ -669,7 +669,7 @@ $H(p, q) = -\sum_i q_i \log(p_i)$
 当 p=q 时，交叉熵最小。
 
 🧠 二、不同任务下的特化形式
-![img_2.png](img_2.png)
+![img_2.png](../img_2.png)
 
 🧩 三、举例说明它们的关系
 
@@ -898,7 +898,7 @@ $\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
 🔍 二、矩阵形状解释
 
 假设输入 $X \in \mathbb{R}^{m \times d_{model}}$
-![img_1.png](img_1.png)
+![img_1.png](../img_1.png)
 
 💡 三、算法流程（中文思路）
 
