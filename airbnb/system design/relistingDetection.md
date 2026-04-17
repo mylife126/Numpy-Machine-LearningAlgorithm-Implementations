@@ -474,3 +474,245 @@ I would also incorporate additional signals such as host-level risk and graph co
 Finally, I would feed these aggregated signals into a risk scoring layer and apply calibrated thresholds to determine actions such as allow, send to review, or automatic removal, depending on the confidence and business tolerance for false positives.
 
 ⸻
+
+# 控场
+可以，这题非常适合你用控场型回答，因为它天然就是一个 retrieval → matching → policy 的分层系统题。
+而且这类题最怕一上来就陷进 classifier 细节里。你应该先把题目重新定义，然后把 conversation 带到你熟悉的 retrieval / ranking / risk architecture 上。
+
+我先给你一个适合面试开场的控场版 full answer，再给你几个可以随时插入的 pause / handoff 话术，最后给你一个针对 follow-up “多个 0.5 怎么办”的标准答法。
+
+⸻
+
+一、控场版开场
+
+你可以这样开：
+
+Thanks, this is a very interesting problem.
+I haven’t worked directly on relisting detection itself, but I do see strong similarities to retrieval, matching, and risk scoring systems I’ve worked on.
+
+So I would frame this not as a simple binary classifier, but as a retrieval plus matching plus policy decision problem.
+
+At a high level, I would design it in three stages:
+first, retrieve suspicious historical candidates with high recall;
+second, run a pairwise matching model between the new listing and each candidate;
+and third, aggregate those signals into an entity-level risk score and make a policy decision.
+
+I’ll first walk through the end-to-end architecture, then go one layer deeper into retrieval, matching, and policy design, and I’ll pause along the way in case you want me to go deeper on any component.
+
+这段的好处是：
+	•	一上来先承认 domain 不是你直接做过的，但马上转到你熟悉的 abstraction
+	•	明确不是单点 classifier
+	•	给出三层框架
+	•	提前说你会 pause，开始控节奏
+
+⸻
+
+二、控场版主体答案
+
+Part 1：先讲问题定义
+
+The goal here is not to decide whether a listing is generally good or bad.
+The real question is whether a new listing is actually a disguised re-upload of a previously removed bad listing.
+
+That makes this an entity resolution and evasion detection problem under adversarial behavior.
+
+这两句很好，因为你先把问题定义拉正了。
+
+⸻
+
+Part 2：高层架构
+
+At a high level, I would use a three-stage pipeline.
+
+Stage one is candidate retrieval. Since we may have a very large corpus of historical bad listings, we need a fast, high-recall way to narrow the search space.
+
+Stage two is pairwise matching. For each retrieved candidate, we score the probability that the new listing and the historical listing are actually the same underlying entity.
+
+Stage three is risk aggregation and policy. We combine pairwise evidence, host-level risk, and graph-level linkage to make the final action decision, such as allow, send to review, suppress, or block.
+
+I’ll pause briefly here — this is the overall system structure. I can now go deeper into retrieval or matching first.
+
+这个 pause 很自然。
+
+⸻
+
+Part 3：Retrieval 设计
+
+For retrieval, my goal is high recall under low latency, so I would use a multi-channel retrieval design rather than relying on a single method.
+
+The first channel would focus on strong, high-precision signals, such as exact or fuzzy address match, geo proximity, phone number, payment information, device fingerprint, or IP cluster if available.
+
+The second channel would focus on semantic recall. Since adversarial hosts may slightly rewrite descriptions or replace images, I would use ANN retrieval over image embeddings and text embeddings to capture visually or semantically similar listings.
+
+Then I would union and deduplicate the results from all channels to form a top-K suspicious candidate set.
+
+这里你把方法论讲出来了：exact + semantic。
+
+可以补一句控场：
+
+The reason I prefer multi-channel retrieval is that under adversarial behavior, any single retrieval channel will have blind spots.
+
+这句很强。
+
+⸻
+
+Part 4：Pairwise matching 设计
+
+Once I have the top-K candidates, I would move to a pairwise matching stage.
+The input is the new listing and one retrieved historical candidate, and the output is the probability that they are relistings of the same underlying listing or bad actor.
+
+For features, I would organize them into four groups.
+
+First, strong linkage signals, such as shared phone, payment, device fingerprint, exact image match, or very close geo match.
+
+Second, content similarity features, such as text similarity, image similarity, amenities overlap, layout similarity, and capacity similarity.
+
+Third, behavioral and temporal features, such as how quickly the new listing appears after the previous one was removed, and whether the posting pattern looks suspicious.
+
+Fourth, graph-based features, for example whether the new listing connects to known bad nodes through shared devices, contact info, or payment instruments.
+
+For the MVP, I would start with a hybrid approach: high-precision rules plus a structured model like GBDT. If the problem proves valuable and sufficiently hard, I would later move to a richer multimodal matching model.
+
+这里一定加一句：
+
+I’m intentionally starting with a simpler structured model first, because I want debuggability and precision control before moving to a heavier multimodal system.
+
+这句很 senior。
+
+⸻
+
+Part 5：Label 和 hard negatives
+
+For labels, positives would come from confirmed relisting cases.
+
+The more important challenge is negatives. I would not use random negatives only, because those are too easy. I would include hard negatives, such as listings in the same area with similar amenities or similar visual appearance, but confirmed to be different.
+
+That helps the model learn the boundary between “truly the same entity” and “just naturally similar listings.”
+
+这段很重要，因为很多人会漏 hard negatives。
+
+⸻
+
+Part 6：Aggregation + policy
+
+After pairwise matching, I would not make the final decision based on a single pair score alone.
+At this point, we need to move from pairwise prediction to an entity-level risk decision.
+
+So I would aggregate evidence across all matched candidates. For example, I would compute features such as:
+the maximum match score,
+the average of top-K scores,
+the number of candidates above a threshold,
+and possibly a weighted sum that gives more importance to stronger or more recent matches.
+
+I would also combine that with host-level risk and graph connectivity.
+
+Then I would feed those aggregated signals into a lightweight risk model or policy layer, and use calibrated thresholds to decide whether to allow, review, suppress, or block the listing.
+
+这段就是你想要的“不是只看单个 0.5”。
+
+你可以加一句：
+
+Multiple moderate matches can actually be more suspicious than one isolated high score, because they indicate consistency across multiple dimensions of similarity.
+
+非常加分。
+
+⸻
+
+Part 7：Evaluation
+
+I would evaluate each stage separately.
+
+For retrieval, I would track recall@K, because if the true historical match never enters the candidate set, the downstream model has no chance.
+
+For pairwise matching, I would focus on PR-AUC and precision at the review threshold, since positive cases are rare and precision matters more than generic AUC.
+
+For the final policy, I would track false positive rate, human review precision, and appeal rate, because over-blocking legitimate hosts is very costly.
+
+这段结构很稳。
+
+⸻
+
+Part 8：Serving and monitoring
+
+In serving, I would use a two-speed system.
+
+Online, I would run a lightweight retrieval and matching stack to catch obvious evasions at listing creation time.
+
+Offline, I would run deeper graph analysis and heavier models to detect more subtle cases and continuously refresh risk signals.
+
+For monitoring, I would track feature missing rate, score drift, human-review disagreement, false positive appeals, and emergence of new evasion patterns, because adversarial behavior will keep evolving.
+
+That would be my end-to-end design. I can go deeper into retrieval, pairwise modeling, or the final policy layer depending on where you’d like to focus.
+
+结尾把球交回去。
+
+⸻
+
+三、你可以随时插入的控场话术
+
+这些很适合你：
+
+开场控场
+	•	“Let me first frame the problem in a production setting.”
+	•	“I see this less as a standalone classifier and more as a retrieval-plus-matching system.”
+	•	“I’ll start with a simple production-friendly architecture, then go deeper into the key modeling choices.”
+
+段落停顿
+	•	“I’ll pause here briefly on the high-level architecture.”
+	•	“That’s the retrieval layer; I can now go one level deeper into matching if that sounds good.”
+	•	“This is usually the main fork in the discussion — we can stay on labels, or go deeper into policy and serving.”
+
+被 challenge 时
+	•	“That’s a good challenge — at that point we are moving from pairwise scoring to entity-level decision making.”
+	•	“My initial design is optimized for recall and debuggability first.”
+	•	“If that becomes the bottleneck, here is how I would evolve it.”
+
+⸻
+
+四、针对 follow-up：多个 0.5 分数怎么办
+
+这个你可以直接背：
+
+That’s a great question. At that point, I would move from pairwise scores to an aggregated entity-level risk decision.
+
+I would not rely only on the max score. Instead, I would aggregate multiple signals, such as the maximum score, the average of top-K scores, and the number of candidates above a threshold.
+
+If I see multiple candidates with moderate scores around 0.5, I would actually consider that suspicious, because consistency across multiple candidates is often stronger evidence than a single isolated match.
+
+I would also check whether those candidates belong to the same bad-actor cluster through graph signals.
+
+Then I would feed the aggregated evidence into a calibrated policy layer and decide whether to allow, send for review, or block.
+
+⸻
+
+五、我帮你再压成一个“2分钟控场版”
+
+如果你想短一点，可以说：
+
+Thanks, this is a very interesting problem. I haven’t worked directly on relisting detection, but I see it as a retrieval, matching, and policy decision system under adversarial behavior.
+
+I would design it in three stages. First, candidate retrieval, where the goal is high recall with low latency. I would use multi-channel retrieval: strong exact or fuzzy signals like address, device, phone, payment, and geo proximity, plus semantic ANN retrieval over text and images.
+
+Second, pairwise matching. For each new listing and retrieved candidate pair, I would predict the relisting probability using strong linkage features, content similarity, temporal behavior, and graph-based features. I would start with high-precision rules plus GBDT, then evolve to a richer multimodal matcher if needed.
+
+Third, risk aggregation and policy. I would aggregate evidence across candidates using signals like max score, top-K average, and count above threshold, then combine that with host and graph risk to decide allow, review, suppress, or block.
+
+I would evaluate retrieval with recall@K, matching with PR-AUC and precision, and policy with false positive rate and review precision.
+
+I’ll pause here — I’m happy to go deeper into retrieval, label construction, or policy thresholds.
+
+⸻
+
+六、最后一个提醒
+
+这题里你最值得保留的 mindset 是：
+
+不要把它讲成“一个 classifier 判断是不是 relisting”。
+你一定要讲成：
+	•	retrieval
+	•	pairwise matching
+	•	aggregation / policy
+
+这样一下子就高级很多。
+
+如果你愿意，我下一条可以继续给你做这个题的 5 个高频 follow-up + 标准答法。

@@ -11,9 +11,11 @@ $J(\theta) = \frac{1}{2m}(X\theta - y)^T(X\theta - y)$
 $\nabla_\theta J = \frac{1}{m} X^T(X\theta - y)$
 
 ✅ 说明：
+
 	•	优化目标是最小化均方误差；
 	•	可以用解析解 $\theta = (X^TX)^{-1}X^Ty$，
 也可以用梯度下降；
+
 	•	损失函数是凸函数，所以 GD 一定收敛到全局最优。
 
 ⸻
@@ -29,9 +31,12 @@ $J(\theta) = \frac{1}{2m}\|X\theta - y\|^2 + \frac{\lambda}{2m}\|\theta\|^2$
 $\nabla_\theta J = \frac{1}{m}X^T(X\theta - y) + \frac{\lambda}{m}\theta$
 
 ✅ 说明：
-	•	额外项 $\frac{\lambda}{2m}\|\theta\|^2$ 是 L2 正则；
-	•	可以防止过拟合，使权重变小；
-	•	解析解为 $\theta = (X^TX + \lambda I)^{-1}X^Ty$。
+
+•	额外项 $\frac{\lambda}{2m}\|\theta\|^2$ 是 L2 正则；
+
+•	可以防止过拟合，使权重变小；
+
+•	解析解为 $\theta = (X^TX + \lambda I)^{-1}X^Ty$。
 
 ⸻
 
@@ -46,6 +51,7 @@ $J(\theta) = \frac{1}{2m}\|X\theta - y\|^2 + \frac{\lambda}{m}\|\theta\|_1$
 $\nabla_\theta J = \frac{1}{m}X^T(X\theta - y) + \frac{\lambda}{m}\,\text{sign}(\theta)$
 
 ✅ 说明：
+
 	•	L1 正则项的导数不是连续的 → 用 subgradient（符号函数 sign）；
 	•	会产生稀疏解（部分权重变 0）；
 	•	常用优化器：坐标下降 (Coordinate Descent) 或 Proximal GD。
@@ -67,9 +73,12 @@ $J(\theta) = -\frac{1}{m}\sum_i [y_i \log(\hat{p_i}) + (1 - y_i)\log(1 - \hat{p_
 $\nabla_\theta J = \frac{1}{m}X^T(\hat{p} - y)$
 
 ✅ 说明：
-	•	MSE 在 sigmoid 情况下收敛慢，Cross-Entropy 是标准形式；
-	•	梯度与线性回归形式相同，只是 $\hat{y}$ 不同；
-	•	损失是凸函数，GD 可收敛到全局最优。
+
+•	MSE 在 sigmoid 情况下收敛慢，Cross-Entropy 是标准形式；
+
+•	梯度与线性回归形式相同，只是 $\hat{y}$ 不同；
+
+•	损失是凸函数，GD 可收敛到全局最优。
 
 ⸻
 
@@ -84,6 +93,7 @@ $J(\theta) = -\frac{1}{m}\sum_i [y_i \log(\hat{p_i}) + (1 - y_i)\log(1 - \hat{p_
 $\nabla_\theta J = \frac{1}{m}X^T(\hat{p} - y) + \frac{\lambda}{m}\theta$
 
 ✅ 说明：
+
 	•	常用于工业实践（防止过拟合）；
 	•	L2 正则不会让权重为零，但能控制规模；
 	•	如果希望稀疏，可以改成 L1。
@@ -109,6 +119,7 @@ $J(W) = -\frac{1}{m}\sum_i \sum_k y_{ik}\log(\hat{p}{ik})$
 $\nabla_W J = \frac{1}{m}X^T(\hat{P} - Y)$
 
 ✅ 说明：
+
 	•	跟 logistic regression 几乎一样，只是 sigmoid→softmax；
 	•	Y 是 one-hot 矩阵；
 	•	这就是神经网络最后一层 softmax 的梯度公式。
@@ -130,6 +141,7 @@ $J(\theta) = \frac{1}{m}\sum_i [e^{X_i\theta} - y_i(X_i\theta)]$
 $\nabla_\theta J = \frac{1}{m}X^T(e^{X\theta} - y)$
 
 ✅ 说明：
+
 	•	又是同样的形式： $X^T(\hat{y}-y)$，只不过 $\hat{y} = e^{X\theta}$
 
 ![img.png](img.png)
@@ -137,10 +149,14 @@ $\nabla_\theta J = \frac{1}{m}X^T(e^{X\theta} - y)$
 ✅ 九、一句话总结
 
 所有这些模型都属于 广义线性模型（GLM） 框架：
-g(\mathbb{E}[y|x]) = X\theta
+
+$g(\mathbb{E}[y|x]) = X\theta$
+
 它们的梯度都具有类似的结构：
-\nabla_\theta J = X^T(\hat{y} - y) + \text{(regularization term)}
+
+$\nabla_\theta J = X^T(\hat{y} - y) + \text{(regularization term)}$
 唯一区别在于：
+
 	•	link function（linear / sigmoid / softmax / exp）
 	•	loss 的形式（MSE / Cross-Entropy / NLL）
 	•	正则化项（L1/L2）
@@ -156,6 +172,7 @@ There are three main variants of Gradient Descent used in optimization:
 - Uses the **entire training dataset** to compute the gradient at each step.
 - Update rule: θ ← θ - α * (1/m) * Xᵀ(Xθ - y)
 - Pros:
+- 
     • Produces an exact gradient (no noise)
     • Converges smoothly and stably
 - Cons:
@@ -270,7 +287,7 @@ Sort eigenvalues in descending order, take the top \(k\) eigenvectors → $(U_k)
 ---
 
 ## 6️⃣ Why Use SVD Instead of Eigen Decomposition
-Directly computing eigenvectors of \(\Sigma = \frac{1}{m} X_c^\top X_c\) (shape \(n \times n\)) can be unstable or expensive when \(n\) is large.
+Directly computing eigenvectors of $(\Sigma = \frac{1}{m} X_c^\top X_c\)$ $(shape \(n \times n\))$ can be unstable or expensive when \(n\) is large.
 
 Instead, perform **SVD**:
 $X_c = U\, S\, V^\top$
@@ -279,7 +296,7 @@ $X_c^\top X_c \;=\; V\, S^2\, V^\top$
 
 Hence:
 - **Principal directions:** columns of \(V\)  
-- **Variance per component:** \(S_i^2/(m-1)\)  
+- **Variance per component:** $\(S_i^2/(m-1)\)  $
 - **Explained variance ratio:**  
   $r_i \;=\; \frac{S_i^2}{\sum_j S_j^2}$
 
@@ -289,11 +306,11 @@ Hence:
 Cumulative explained variance ratio:
 $R_k \;=\; \frac{\sum_{i=1}^{k} S_i^2}{\sum_{i=1}^{r} S_i^2}$
 
-Choose the smallest \(k\) such that \(R_k \ge 0.95\).
+Choose the smallest \(k\) such that $\(R_k \ge 0.95\)$.
 
-```python
+```
 svals = S  # singular values from SVD
-explained_var_ratio = svals**2 / np.sum(svals**2)
+explained_var_ratio = $svals**2 / np.sum(svals**2)$
 cum_ratio = np.cumsum(explained_var_ratio)
 k = np.searchsorted(cum_ratio, 0.95) + 1
 ```
@@ -762,7 +779,8 @@ $c^{(t+1)} = \frac{\sum_i w_i x_i}{\sum_i w_i}, \quad  \text{其中 } w_i = \fra
 	•	每次根据这些权重重新加权平均；
 	•	当新旧 c 的差距很小时，停止迭代。
 
-## 1D array to find minimal mahattan distance 
+## 空间距离算法总结
+### 1D array to find minimal mahattan distance 
 🧩 一、题目理解与数学原理
 
 给定一个整数数组：
@@ -772,7 +790,7 @@ $\text{nums} = [a_1, a_2, \dots, a_N]$
 对于每个元素 a_i，
 找出它与任意其他元素的最小曼哈顿距离：
 
-$[ \text{min\dist}(a_i) = \min{j \ne i} |a_i - a_j|]$
+$[\text{min\dist}(a_i) = \min{j \ne i} |a_i - a_j|]$
 
 ⸻
 
@@ -810,7 +828,7 @@ $|b - a| \le |b - c|,\quad |c - b| \le |c - a|$
 4️⃣ 把结果放回原始索引对应的位置；
 5️⃣ 返回结果数组。
 
-## 二维曼哈顿距离最近点 (Closest Manhattan Distance in 2D)
+### 二维曼哈顿距离最近点 (Closest Manhattan Distance in 2D)
 🧩 一、题目理解
 
 给定二维平面上一组点：
@@ -859,7 +877,7 @@ x - y   （↘ 东南方向）
 
 最终复杂度 O(4·N log N) = O(N log N)。
 
-## Single head self attention
+### Single head self attention
 🧠 一、题目与背景
 
 目标：
@@ -899,4 +917,5 @@ $\text{score} = QK^T / \sqrt{d_k}$
 5️⃣ 用这个分布加权 V：
 $\text{output} = \text{softmax}(score)V$
 得到聚合后的上下文表示。
+
 

@@ -1012,9 +1012,6 @@ If repeated bookings from the same listing dominate the dataset, I would also co
 
 这句会显得你真的做过 production ML。
 
-如果你愿意，我下一条可以直接把这个 quality model 用我们最新的 ML system design mock output template v2 重新整理成最终可背版本。
-
-这是下一层。
 ## Section 5: 控场版本：
 你这种题，推荐的控场结构
 

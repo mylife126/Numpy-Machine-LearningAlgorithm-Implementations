@@ -203,6 +203,7 @@ Why
 My framing
 
 你可以把它理解成：
+
 	•	一半是 workflow state store
 	•	一半是 reasoning trace
 	•	一半是 recoverable execution log
@@ -216,6 +217,7 @@ Role
 Gaia 的 brain，不是简单 tool router，而是 dynamic planner + coordinator。
 
 What it does
+
 	1.	识别当前是新 case 还是 existing case continuation
 	2.	选择 workflow template
 	3.	把 case 分解成多步子任务
@@ -227,6 +229,7 @@ For this use case
 
 我会设计一个 workflow template：
 
+```
 Step 1: collect relevant project context
 Step 2: generate project summary
 Step 3: identify blocker candidates
@@ -234,6 +237,7 @@ Step 4: resolve conflicting evidence
 Step 5: propose recovery plan
 Step 6: human review if needed
 Step 7: publish / execute next-step recommendations
+```
 
 Why this matches doc
 
@@ -248,36 +252,38 @@ This is not just enterprise search
 如果我只说“做个 RAG”是不够的。
 
 It needs to do 4 things
+
 	1.	Ingest multi-modal organizational knowledge
-	•	docs
-	•	tickets
-	•	meeting notes
-	•	Slack / chat
-	•	dashboards
-	•	code / PRs
-	•	calendars / milestones
+        •	docs
+        •	tickets
+        •	meeting notes
+        •	Slack / chat
+        •	dashboards
+        •	code / PRs
+        •	calendars / milestones
 	2.	Normalize and structure
-	•	chunk text
-	•	entity extraction
-	•	ownership
-	•	timestamp
-	•	source type
-	•	access control
+        •	chunk text
+        •	entity extraction
+        •	ownership
+        •	timestamp
+        •	source type
+        •	access control
 	3.	Hybrid retrieval
-	•	dense retrieval for semantic match
-	•	sparse / keyword retrieval for project names, acronyms, IDs
-	•	reranker for precision
+        •	dense retrieval for semantic match
+        •	sparse / keyword retrieval for project names, acronyms, IDs
+        •	reranker for precision
 	4.	Contradiction resolution
-	•	claim extraction
-	•	compare authority / recency / corroboration
-	•	preserve provenance
-	•	abstain or ask targeted clarification if unresolved
+        •	claim extraction
+        •	compare authority / recency / corroboration
+        •	preserve provenance
+        •	abstain or ask targeted clarification if unresolved
 
 Why this is crucial
 
 文档明确说 knowledge system 不只是 capture and retrieve，它还必须 resolve conflicting information，并在冲突无法安全解决时保留 uncertainty、升级给人。 ￼
 
 Example
+
 	•	doc says blocker = infra
 	•	latest ticket says fixed
 	•	meeting note says legal review is actual blocker
@@ -294,12 +300,14 @@ Important distinction
 这里我会刻意分两类 memory：
 
 A. User / team personalization memory
+
 	•	role = PM / engineer / manager
 	•	preferred summary depth
 	•	frequently referenced projects
 	•	team-specific workflow norms
 
 B. Workflow / case memory
+
 	•	current intent
 	•	intermediate outputs
 	•	prior assumptions
@@ -312,6 +320,7 @@ Why this matters
 Gaia 文档里的 personalization 不是普通“记住用户偏好”，而是 team-specific policy learning，让 workflow variant、context bundle、routing decisions 随 team 的 outcome 逐渐优化。 ￼
 
 Storage design
+
 	•	structured profile store：role / team / stable preferences
 	•	vector memory：past relevant cases / summarized interactions
 	•	case file：current workflow state
@@ -319,6 +328,7 @@ Storage design
 Output adaptation example
 
 同样是 “What is the current status of Atlas?”
+
 	•	engineer version：technical blockers, dependencies, failing checks
 	•	PM version：risks, owners, timeline, escalation needs
 
@@ -329,6 +339,7 @@ Output adaptation example
 What generation is used for
 
 不是直接“让 LLM 给答案”，而是用于：
+
 	•	summarization
 	•	blocker hypothesis generation
 	•	recovery plan drafting
@@ -336,6 +347,7 @@ What generation is used for
 	•	justification synthesis for user-facing explanations
 
 Guardrails
+
 	•	grounded generation only
 	•	must cite retrieved evidence
 	•	distinguish fact vs inference
@@ -356,16 +368,19 @@ Validators
 比如：
 
 Summary validator
+
 	•	coverage of key entities
 	•	no unsupported claims
 	•	freshness check
 
 Blocker diagnosis validator
+
 	•	evidence coverage across systems
 	•	contradiction unresolved?
 	•	confidence threshold met?
 
 Recovery plan validator
+
 	•	plan aligns with actual blockers
 	•	dependencies included
 	•	owners assigned
@@ -374,6 +389,7 @@ Recovery plan validator
 Human-in-the-loop
 
 对于高风险动作：
+
 	•	modifying tracker
 	•	notifying stakeholders
 	•	creating task changes
@@ -392,6 +408,7 @@ Goal
 turn decisions into outcomes
 
 What it can do
+
 	•	create/update Jira tasks
 	•	notify owners
 	•	generate docs or launch checklist
@@ -401,6 +418,7 @@ What it can do
 	•	request human review
 
 Infrastructure requirements
+
 	•	idempotency
 	•	rollback / compensation
 	•	audit log
@@ -419,8 +437,8 @@ This is one of the biggest Gaia-specific additions
 
 3-stage optimization loop
 
-1. Observe
-收集：
+First Observe  收集：
+
 	•	rework rate
 	•	review cycles
 	•	plan acceptance
@@ -428,8 +446,8 @@ This is one of the biggest Gaia-specific additions
 	•	resolution latency
 	•	user override rate
 
-2. Reason
-形成 root-cause hypotheses：
+Second Reason  形成 root-cause hypotheses：
+
 	•	missing context
 	•	stale knowledge
 	•	wrong workflow template
@@ -437,8 +455,8 @@ This is one of the biggest Gaia-specific additions
 	•	inadequate examples
 	•	user role mismatch
 
-3. Act
-保守地调整：
+Third Act  保守地调整：
+
 	•	context bundle selection
 	•	workflow variant
 	•	agent routing
@@ -448,6 +466,7 @@ This is one of the biggest Gaia-specific additions
 Learning style
 
 我会用 scoped conservative policy updates
+
 	•	team-scoped
 	•	workflow-scoped
 	•	bandit-style updates across a small set of alternatives
@@ -465,6 +484,7 @@ Why this connects to your background
 我会分三层：
 
 A. Retrieval / knowledge metrics
+
 	•	Recall@K
 	•	Precision@K
 	•	claim coverage
@@ -473,6 +493,7 @@ A. Retrieval / knowledge metrics
 	•	contradiction detection rate
 
 B. Workflow metrics
+
 	•	case completion rate
 	•	resume success after interruption
 	•	partial re-execution success
@@ -481,6 +502,7 @@ B. Workflow metrics
 	•	escalation appropriateness
 
 C. Business / user metrics
+
 	•	time-to-context for new PM
 	•	time-to-find-right-doc
 	•	reduction in repeated questions
@@ -489,6 +511,7 @@ C. Business / user metrics
 	•	trust / transparency satisfaction
 
 D. Optimization metrics
+
 	•	policy improvement lift
 	•	lower rework after policy update
 	•	lower review cycles
@@ -501,6 +524,7 @@ D. Optimization metrics
 Phase 1
 
 Read-heavy assistant:
+
 	•	project understanding
 	•	doc retrieval
 	•	blocker summary
@@ -509,6 +533,7 @@ Read-heavy assistant:
 Phase 2
 
 Case-aware workflows:
+
 	•	persistent case file
 	•	multi-step plan generation
 	•	conflict resolution
@@ -517,6 +542,7 @@ Case-aware workflows:
 Phase 3
 
 Action-taking system:
+
 	•	task creation
 	•	execution coordination
 	•	config updates

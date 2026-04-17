@@ -408,3 +408,194 @@ In terms of serving, I would keep the system mostly offline-heavy and online-lig
 For evaluation, I would evaluate the eligibility model using PR AUC, precision, and human-review precision, since false positives can hurt host trust. For the ranking system, I would look at NDCG and booking rate within family-filtered traffic, and I would also track downstream product metrics such as family-user satisfaction and complaint rates.
 
 Finally, I would monitor feature coverage, score drift, disagreement between rule-based and model-based labeling, and the business impact of the filter itself. Over time, I would iterate from a simple rule-plus-classifier system to a richer multimodal system once I understand which signals actually drive family traveler satisfaction.
+
+## 控场
+🚀 控场版答案（推荐直接练）
+
+⸻
+
+🟢 开场（控场 + framing）
+
+Thanks, this is a great question. Let me first frame the problem, because I see two connected ML tasks here.
+
+The first task is to identify whether a listing is family-friendly. The second task is, once a user applies a family-friendly filter, how to rank the eligible listings.
+
+So I would design this as a two-stage system: an eligibility model followed by a filtered ranking system.
+
+I’ll start with how I define and build the eligibility model, then move to ranking and serving. I’ll pause along the way in case you want me to go deeper into any part.
+
+👉 这里已经完成控场
+
+⸻
+
+🟢 Part 1：定义 label（很关键）
+
+For the eligibility part, the first step is defining what “family-friendly” means operationally.
+
+I would expect it to include signals around child-suitable amenities, safety, quietness, family-appropriate layout, and positive family-related traveler experience.
+
+Since this label doesn’t exist cleanly in raw data, I would construct it using multiple sources.
+
+👉 🔵 控场句：
+
+This label definition is important because it directly drives both feature design and model behavior.
+
+👉 🟡 pause点：
+
+I’ll pause here briefly — do you want me to go deeper into label construction or move to feature signals?
+
+⸻
+
+🟢 Part 2：feature + data construction
+
+Concretely, I would start with structured signals such as amenities like crib, high chair, kitchen, washer, extra bedrooms, and capacity.
+
+I would also use review and support text, for example positive mentions like “great for kids” or negative signals such as repeated safety or noise complaints.
+
+In addition, I would consider image and neighborhood context, such as whether the listing appears to have family-suitable spaces or whether the neighborhood has family-oriented points of interest.
+
+👉 🔵 控场句（加分）：
+
+So I’m combining explicit signals, implicit behavioral signals, and contextual signals to approximate family suitability.
+
+⸻
+
+🟢 Part 3：建模（iteration思路很好）
+
+For the first iteration, I would use weak supervision plus a small human-labeled seed set.
+
+For example, strong positive rules could come from child-related amenities and positive family-review language, while strong negative rules could come from repeated safety complaints.
+
+Then I would train a classifier, starting with a structured baseline such as GBDT or logistic regression.
+
+👉 🔵 控场句（关键）：
+
+I’m intentionally starting with a simple model because I want to validate the label quality before increasing model complexity.
+
+👉 非常加分
+
+⸻
+
+继续：
+
+In a second iteration, I would move to a multimodal model that combines structured features with text and image embeddings if the business impact justifies it.
+
+👉 🟡 pause点：
+
+I can go deeper into the weak supervision setup or the multimodal model if that’s interesting.
+
+⸻
+
+🟢 Part 4：ranking（你这里很好）
+
+Once I have that family-friendly score, I would integrate it into search.
+
+When a user applies the family-friendly filter, I would first use that score as a gating condition to define the candidate pool.
+
+Then within that filtered pool, I would still run a ranking model rather than simply sorting by the family-friendly score.
+
+👉 🔥 关键解释（很好，保留）
+
+The reason is that users still care about relevance, price, reviews, and booking utility, so the ranker should combine general booking signals with family-specific signals.
+
+👉 🔵 控场升级：
+
+So conceptually, I treat family-friendly as a constraint plus a feature, not as a standalone ranking objective.
+
+👉 这句话很强
+
+⸻
+
+🟢 Part 5：serving（你这段很好）
+
+In terms of serving, I would keep the system mostly offline-heavy and online-light.
+
+The eligibility score and derived features can be precomputed offline, and at query time the system only needs to apply filtering and ranking.
+
+👉 🔵 控场句：
+
+This helps control latency and makes the system easier to scale.
+
+⸻
+
+🟢 Part 6：evaluation（很好但可以更“结构化”）
+
+For evaluation, I would evaluate both the eligibility model and the downstream ranking impact.
+
+👉 分两层说：
+
+For the eligibility model, I would look at PR AUC, precision, and human-judged precision, since false positives can hurt trust.
+
+For ranking, I would evaluate NDCG and booking rate within family-filtered traffic, as well as downstream satisfaction and complaint metrics.
+
+⸻
+
+🟢 Part 7：monitoring（加一个控场句）
+
+For monitoring, I would track feature coverage, score drift, and disagreement between rule-based and model-based signals.
+
+👉 🔵 控场升级：
+
+One important thing I would watch is whether the filter becomes too restrictive or too permissive over time.
+
+👉 非常 product-aware
+
+⸻
+
+🟢 收尾（一定要有）
+
+Overall, I would start with a simple rule-plus-classifier system, validate the label and business impact, and then evolve to a richer multimodal model once I understand which signals actually matter.
+
+I can go deeper into labeling, ranking integration, or model design depending on where you’d like to focus.
+
+👉 🟢 主动交还控制权（很关键）
+
+⸻
+
+🧠 三、你这题最加分的3句话（建议记住）
+
+1️⃣
+
+I treat family-friendly as a constraint plus a feature, not as a standalone ranking objective.
+
+👉 非常高级
+
+⸻
+
+2️⃣
+
+I’m intentionally starting with a simple model to validate label quality before increasing complexity.
+
+👉 非常 senior
+
+⸻
+
+3️⃣
+
+The problem really depends on how we define the target, because that drives both labeling and system design.
+
+👉 万能句
+
+⸻
+
+🚀 四、你的控场已经是对的，但再优化一点点
+
+你现在已经具备：
+	•	有结构
+	•	有节奏
+	•	有 iteration thinking
+	•	有 product sense
+
+你只差：
+
+👉 把“连续讲述”变成“分段推进 + 主动停顿 + 引导选择”
+
+⸻
+
+🧾 五、最后给你一个万能控场模板（可以套所有题）
+
+你明天可以直接用：
+
+Let me first frame the problem in a production setting.
+I’ll start with a simple v1 system and walk through architecture, data, modeling, and serving.
+There are a couple of natural deep dives here — label construction and modeling tradeoffs — and I’ll pause along the way so we can go deeper where you prefer.
