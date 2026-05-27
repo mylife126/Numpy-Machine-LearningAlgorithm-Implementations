@@ -736,11 +736,11 @@ $$\mathcal{L} = \alpha \cdot \mathcal{L}_{\text{conversion}}(\text{conversion pa
 
 #### Solution 3: Constrained optimization in ranking
 
-$$\max \mathbb{E}[\text{revenue}] \quad \text{s.t.} \quad \text{relevance\_score} \geq \theta \; \forall \; \text{served ads}$$
+$$\max \mathbb{E}[\text{revenue}] \quad \text{s.t.} \quad \text{relevance score} \geq \theta \; \forall \; \text{served ads}$$
 
 Or soft version:
 
-$$\text{final\_score} = \lambda \cdot \text{revenue\_score} + (1 - \lambda) \cdot \text{relevance\_score}$$
+$$\text{final score} = \lambda \cdot \text{revenue score} + (1 - \lambda) \cdot \text{relevance score}$$
 
 #### Solution 4: Training data debiasing
 
@@ -1368,7 +1368,7 @@ $$\text{Teacher (cross-encoder)} \xrightarrow{\text{distill}} \text{Student (lig
 
 **Step 3:** Train student model on these soft labels
 - Student: 2-layer MLP, small dual encoder, or GBDT
-- $\mathcal{L} = \text{MSE}\left(\text{student}(q, d), \text{teacher\_score}(q, d)\right)$
+- $\mathcal{L} = \text{MSE}\left(\text{student}(q, d), \text{teacher score}(q, d)\right)$
 - Now you have millions of high-quality labels to train with
 
 **Step 4:** Serve student model online
@@ -1708,8 +1708,8 @@ For $N=50,000$: $\log N \approx 17$, so ~17 × 32 × 256 ≈ 139K operations vs 
 | Parameter | What it controls | Trade-off |
 |---|---|---|
 | $M$ | Neighbors per node | Higher → better recall, more memory |
-| $\text{ef\_construction}$ | Beam width when building graph | Higher → better graph quality, slower build |
-| $\text{ef\_search}$ | Beam width at query time | Higher → better recall, slower query |
+| $\text{ef construction}$ | Beam width when building graph | Higher → better graph quality, slower build |
+| $\text{ef search}$ | Beam width at query time | Higher → better recall, slower query |
 
 ---
 

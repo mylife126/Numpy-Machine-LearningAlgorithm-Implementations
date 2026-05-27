@@ -438,13 +438,13 @@ This is a true multi-head model — two prediction heads, two different labels, 
 
 **The SCORING FORMULA is how we COMBINE predictions at serving time (not trained):**
 
-$$\text{score} = w_1 \cdot \text{pCTR} + w_2 \cdot \text{pCVR} + w_3 \cdot \text{relevance} + w_4 \cdot \text{bid} - w_5 \cdot \text{diversity\_penalty}$$
+$$\text{score} = w_1 \cdot \text{pCTR} + w_2 \cdot \text{pCVR} + w_3 \cdot \text{relevance} + w_4 \cdot \text{bid} - w_5 \cdot \text{diversity penalty}$$
 
 - $\text{pCTR}$: output from CTR tower (model prediction)
 - $\text{pCVR}$: output from CVR tower (model prediction)
 - $\text{relevance}$: output from separate relevance model (not part of ranking model)
 - $\text{bid}$: advertiser's bid price (business input, not a model prediction)
-- $\text{diversity\_penalty}$: computed from already-shown ads (real-time business logic)
+- $\text{diversity penalty}$: computed from already-shown ads (real-time business logic)
 - $w_1...w_5$: tunable weights, set per-placement, NOT learned by gradient descent
 
 > **How to say it:**
