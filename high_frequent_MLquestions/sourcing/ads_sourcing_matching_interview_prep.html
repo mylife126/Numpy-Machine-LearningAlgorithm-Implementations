@@ -1,0 +1,2643 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; 
+       font-size: 11px; line-height: 1.5; max-width: 900px; margin: 0 auto; padding: 20px; }
+h1 { font-size: 20px; border-bottom: 2px solid #333; padding-bottom: 8px; }
+h2 { font-size: 16px; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 25px; }
+h3 { font-size: 13px; margin-top: 20px; }
+h4 { font-size: 12px; margin-top: 15px; }
+table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 10px; }
+th, td { border: 1px solid #ddd; padding: 5px 8px; text-align: left; }
+th { background-color: #f5f5f5; font-weight: bold; }
+code { background-color: #f4f4f4; padding: 1px 4px; border-radius: 3px; font-size: 10px; }
+pre { background-color: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; font-size: 10px; }
+blockquote { border-left: 3px solid #4a90d9; margin: 10px 0; padding: 8px 15px; background-color: #f8f9fa; font-size: 11px; }
+a { color: #4a90d9; }
+</style>
+</head>
+<body>
+<h1 id="ads-sourcing-matching-interview-preparation">Ads Sourcing &amp; Matching — Interview Preparation</h1>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ul>
+<li><a href="#background-apple-ads-team">Background: Apple Ads Team</a></li>
+<li><strong>Part 1: Phone Screen Questions</strong></li>
+<li><a href="#q1-design-a-matching-system-for-photo-editor-query-against-50k-apps">Q1: Design matching system for 50K+ apps</a></li>
+<li><a href="#q2-lexical-matching-evaluation-metrics">Q2: Lexical matching evaluation metrics</a></li>
+<li><a href="#q3-bm25-vs-tf-idf--deep-dive-with-examples">Q3: BM25 vs TF-IDF — Deep Dive</a></li>
+<li><a href="#q4-why-dual-encoder-over-cross-encoder">Q4: Why Dual Encoder over Cross-Encoder?</a></li>
+<li><a href="#q5-recall-precision-roc-auc-pr-auc">Q5: Recall, Precision, ROC-AUC, PR-AUC</a></li>
+<li><a href="#q6-revenue-up-but-relevance-drops--how-to-fix">Q6: Revenue up but relevance drops</a></li>
+<li><strong>Part 2: Follow-up Questions (Retrieval Model Training)</strong></li>
+<li><a href="#q7-how-to-train-a-dual-encoder-data-labels-loss-design">Q7: Train a Dual Encoder — Data, Labels, Loss</a></li>
+<li><a href="#q7b-standalone-relevance-model--design-and-labels">Q7b: Standalone Relevance Model</a></li>
+<li><a href="#q7c-hard-negative-mining--detailed-explanation">Q7c: Hard Negative Mining</a></li>
+<li><a href="#q7d-why-can-relevance-model-use-cross-encoder-isnt-dual-encoder-better">Q7d: Why relevance model can use cross-encoder?</a></li>
+<li><a href="#q7e-is-cross-encoder-just-pointwise-ranking">Q7e: Is cross-encoder just pointwise ranking?</a></li>
+<li><a href="#q7f-if-retrieval-already-has-multi-objective-loss-why-need-a-separate-relevance-model">Q7f: Why separate relevance model if multi-obj exists?</a></li>
+<li><a href="#q7g-what-is-distillation-why-not-just-use-cross-encoder-directly">Q7g: Distillation — why not use cross-encoder directly?</a></li>
+<li><a href="#q7h-why-not-just-train-gbdt-directly-why-distill">Q7h: Why not train GBDT directly?</a></li>
+<li><a href="#retrieval-model-training--connecting-the-dots-complete-summary">Retrieval Training — Connecting the Dots (Summary)</a></li>
+<li><strong>Retrieval System &amp; Infrastructure</strong></li>
+<li><a href="#q8-ann-approximate-nearest-neighbor--why-fast-how-it-works">Q8: ANN — Why Fast, How It Works</a></li>
+<li><a href="#q8b-multi-channel-retrieval--strategies-beyond-bm25--semantic">Q8b: Multi-Channel Retrieval + Fusion</a></li>
+<li><strong>Other Topics</strong></li>
+<li><a href="#q9-cold-start-problem--new-app-with-no-behavioral-data">Q9: Cold-start problem</a></li>
+<li><a href="#q10-query-understanding--from-basic-to-llm-based-personalization">Q10: Query Understanding + LLM Orchestration</a></li>
+<li><a href="#q11-offline-vs-online-evaluation-metrics">Q11: Offline vs Online metrics</a></li>
+<li><a href="#q12-llm-applications-in-ads-matching">Q12: LLM applications in ads matching</a></li>
+<li><a href="#q13-multi-stage-system-architecture">Q13: Multi-stage system architecture</a></li>
+<li><a href="#q15-privacy-centric-ads-matching-apple-specific">Q15: Privacy-centric matching (Apple-specific)</a></li>
+<li><a href="#part-3-system-design-round-framework">Part 3: System Design Round Framework</a></li>
+<li><a href="#key-takeaways-for-all-rounds">Key Takeaways for All Rounds</a></li>
+</ul>
+<hr />
+<h2 id="background-apple-ads-team">Background: Apple Ads Team</h2>
+<ul>
+<li><strong>Team focus</strong>: Ads matching/sourcing for App Store, Apple News, Apple Stocks, Apple Sports, Apple Maps</li>
+<li><strong>Key differentiators</strong>: Privacy-centric (no IDFA cross-app tracking), premium brand experience, organic ad integration</li>
+<li><strong>Maturity</strong>: Earlier stage than Google/Meta/Amazon ads — leaner teams, need breadth + depth</li>
+<li><strong>Constraint</strong>: Not pure revenue maximization — must respect privacy + customer journey</li>
+</ul>
+<hr />
+<h2 id="part-1-phone-screen-questions-answers">Part 1: Phone Screen Questions &amp; Answers</h2>
+<h3 id="q1-design-a-matching-system-for-photo-editor-query-against-50k-apps">Q1: Design a matching system for "photo editor" query against 50K+ apps</h3>
+<p><strong>Multi-stage retrieval pipeline:</strong></p>
+<ol>
+<li><strong>Query Understanding</strong></li>
+<li>Spell correction: "phot editor" → "photo editor"</li>
+<li>Query expansion: photo editor → image editor, picture editor (via synonym dict or embedding similarity)</li>
+<li>
+<p>Intent classification: navigational (specific app name) vs. exploratory (category)</p>
+</li>
+<li>
+<p><strong>Candidate Retrieval (Recall stage)</strong> — 50K → top 500~1000</p>
+</li>
+<li><strong>Lexical retrieval</strong>: BM25 over inverted index (app name, description, keywords)</li>
+<li><strong>Semantic retrieval</strong>: Dual encoder (query encoder + app encoder) → ANN search</li>
+<li>
+<p>Union both result sets for max recall</p>
+</li>
+<li>
+<p><strong>Ranking</strong> — 500 → top 20~50</p>
+</li>
+<li>Cross-encoder or feature-rich model (GBDT/neural ranker)</li>
+<li>
+<p>Features: semantic score, lexical score, app quality, advertiser bid, historical CTR/CVR</p>
+</li>
+<li>
+<p><strong>Post-ranking</strong></p>
+</li>
+<li>Policy compliance, budget pacing, frequency cap, diversity, privacy constraints</li>
+</ol>
+<blockquote>
+<p><strong>How to say it in interview:</strong></p>
+<p>"I'd design this as a multi-stage funnel. First, a query understanding layer handles spell correction and query expansion — turning 'photo editor' into related terms like 'image editor.' Then for candidate retrieval, I'd run two parallel paths: a lexical path using BM25 over an inverted index for exact term matching, and a semantic path using a dual encoder model with ANN search — this catches synonyms and paraphrases that BM25 would miss. I'd union both result sets to maximize recall, giving us roughly 500 to 1000 candidates.</p>
+<p>Those candidates then go into a ranking stage — a heavier model, maybe a cross-encoder or a feature-rich neural ranker, that considers semantic scores, ad quality, bid price, and historical engagement. Finally, a post-ranking layer applies business rules: budget pacing, frequency caps, diversity, and privacy constraints. Each stage trades off more compute for higher precision on fewer candidates."</p>
+</blockquote>
+<hr />
+<h3 id="q2-lexical-matching-evaluation-metrics">Q2: Lexical matching evaluation metrics</h3>
+<p><strong>Retrieval quality metrics:</strong>
+- <strong>Recall@K</strong> = |relevant items in top-K| / |total relevant items| — coverage
+- <strong>Precision@K</strong> = |relevant items in top-K| / K — accuracy
+- <strong>MRR</strong> (Mean Reciprocal Rank) = 1/rank of first relevant result
+- <strong>NDCG@K</strong> — weighted relevance considering position</p>
+<p><strong>The scoring function itself (BM25)</strong> is what determines "how good is the lexical match" for each query-doc pair.</p>
+<blockquote>
+<p><strong>How to say it in interview:</strong></p>
+<p>"For evaluating lexical retrieval, I'd focus on Recall at K — because at the retrieval stage, the priority is coverage: we can't afford to miss relevant ads. Precision at K matters more downstream in ranking. I'd also look at MRR, which measures how quickly we surface the first relevant result, and NDCG if we have graded relevance labels. The retrieval scoring itself comes from BM25, which gives a relevance score for each query-document pair based on term frequency and document frequency statistics."</p>
+</blockquote>
+<hr />
+<h3 id="q3-bm25-vs-tf-idf-deep-dive-with-examples">Q3: BM25 vs TF-IDF — Deep Dive with Examples</h3>
+<h4 id="tf-idf-formula-and-term-by-term-explanation">TF-IDF — Formula and Term-by-Term Explanation</h4>
+<p>$$\text{score}(q, d) = \sum_{t \in q} \text{tf}(t, d) \times \text{idf}(t)$$</p>
+<p><strong>$\text{tf}(t, d)$</strong> = term frequency — how many times term $t$ appears in document $d$
+- Intuition: more occurrences → more relevant to that term</p>
+<p><strong>$\text{idf}(t)$</strong> = inverse document frequency:</p>
+<p>$$\text{idf}(t) = \log \frac{N}{\text{df}(t)}$$</p>
+<ul>
+<li>$N$ = total documents in corpus</li>
+<li>$\text{df}(t)$ = number of documents containing term $t$</li>
+<li>Intuition: rare words have more discriminative power; "the" appears everywhere (low idf), "photoshop" appears in few docs (high idf)</li>
+</ul>
+<h4 id="tf-idf-worked-example">TF-IDF Worked Example</h4>
+<p>Query = "photo editor", Corpus = 5 apps:</p>
+<table>
+<thead>
+<tr>
+<th>App</th>
+<th>Description</th>
+<th>Length</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td>"photo editor with filters and photo enhancement"</td>
+<td>7 words</td>
+</tr>
+<tr>
+<td>B</td>
+<td>"video editor for social media"</td>
+<td>5 words</td>
+</tr>
+<tr>
+<td>C</td>
+<td>"photo gallery viewer"</td>
+<td>3 words</td>
+</tr>
+<tr>
+<td>D</td>
+<td>"code editor for developers"</td>
+<td>4 words</td>
+</tr>
+<tr>
+<td>E</td>
+<td>"photo photo photo editor editor"</td>
+<td>5 words (keyword spam)</td>
+</tr>
+</tbody>
+</table>
+<p>Corpus stats:
+- $N = 5$
+- $\text{df}(\text{"photo"}) = 3$ (A, C, E) → $\text{idf} = \log(5/3) = 0.51$
+- $\text{df}(\text{"editor"}) = 4$ (A, B, D, E) → $\text{idf} = \log(5/4) = 0.22$</p>
+<p>Scores:</p>
+<p><strong>App A:</strong> $\text{tf}(\text{"photo"}, A) = 2$, $\text{tf}(\text{"editor"}, A) = 1$</p>
+<p>$$\text{score}(q, A) = 2 \times 0.51 + 1 \times 0.22 = 1.24$$</p>
+<p><strong>App E:</strong> $\text{tf}(\text{"photo"}, E) = 3$, $\text{tf}(\text{"editor"}, E) = 2$</p>
+<p>$$\text{score}(q, E) = 3 \times 0.51 + 2 \times 0.22 = 1.97 \quad \leftarrow \text{HIGHEST! But it's keyword spam!}$$</p>
+<p><strong>App C:</strong> $\text{tf}(\text{"photo"}, C) = 1$, $\text{tf}(\text{"editor"}, C) = 0$</p>
+<p>$$\text{score}(q, C) = 1 \times 0.51 + 0 \times 0.22 = 0.51$$</p>
+<p><strong>Problem exposed:</strong> App E just stuffs keywords and gets the highest score because TF grows linearly without bound. Also, longer docs naturally accumulate higher TF.</p>
+<hr />
+<h4 id="bm25-formula-and-term-by-term-explanation">BM25 — Formula and Term-by-Term Explanation</h4>
+<p>$$\text{score}(q, d) = \sum_{t \in q} \text{idf}(t) \cdot \frac{\text{tf}(t,d) \cdot (k_1 + 1)}{\text{tf}(t,d) + k_1 \cdot \left(1 - b + b \cdot \frac{|d|}{\text{avgdl}}\right)}$$</p>
+<p>Breaking down the fraction piece by piece:</p>
+<p><strong>Numerator:</strong> $\text{tf}(t,d) \cdot (k_1 + 1)$
+- Linear scaling of tf, multiplied by a constant $(k_1+1)$</p>
+<p><strong>Denominator:</strong> $\text{tf}(t,d) + k_1 \cdot \left(1 - b + b \cdot \frac{|d|}{\text{avgdl}}\right)$
+- This is what creates saturation and length normalization
+- As $\text{tf} \to \infty$: $\frac{\text{tf}}{\text{tf} + \text{constant}} \to 1.0$ (saturation!)
+- The $k_1 \cdot \left(1 - b + b \cdot \frac{|d|}{\text{avgdl}}\right)$ part is the "effective $k_1$" adjusted for doc length</p>
+<p><strong>Parameter $k_1 \approx 1.2$ — Saturation control:</strong>
+- Controls how fast tf saturates
+- When $\text{tf} \gg k_1$: the fraction $\to (k_1+1)$, regardless of how much higher tf goes
+- When $\text{tf} = 1$: significant contribution
+- When $\text{tf} = 10$ vs $\text{tf} = 100$: almost no difference (both saturated)
+- $k_1 \to \infty$: degrades to linear TF-IDF (no saturation)
+- $k_1 \to 0$: becomes binary (term present or not)</p>
+<p><strong>Parameter $b \approx 0.75$ — Length normalization:</strong>
+- $b = 0$: no length normalization at all
+- $b = 1$: full normalization proportional to doc length
+- $\frac{|d|}{\text{avgdl}}$: if doc is longer than average, denominator increases → score decreases
+- Intuition: one occurrence of "photo" in a 3-word title is more meaningful than in a 100-word description</p>
+<p><strong>$\text{avgdl}$ — Average document length across corpus:</strong>
+- The baseline for "normal" document length
+- Docs shorter than avgdl get a boost, docs longer get penalized</p>
+<h4 id="bm25-worked-example">BM25 Worked Example</h4>
+<p>Same corpus. $k_1=1.2$, $b=0.75$, $\text{avgdl} = (7+5+3+4+5)/5 = 4.8$</p>
+<p><strong>App A</strong> ($|d|=7$): $\text{tf}(\text{"photo"})=2$, $\text{tf}(\text{"editor"})=1$</p>
+<p>Length factor: $1 - b + b \cdot \frac{|d|}{\text{avgdl}} = 1 - 0.75 + 0.75 \times \frac{7}{4.8} = 0.25 + 1.09 = 1.34$</p>
+<p>$$\text{BM25}(\text{"photo"}, A) = 0.51 \times \frac{2 \times 2.2}{2 + 1.2 \times 1.34} = 0.51 \times \frac{4.4}{3.61} = 0.51 \times 1.22 = 0.62$$</p>
+<p>$$\text{BM25}(\text{"editor"}, A) = 0.22 \times \frac{1 \times 2.2}{1 + 1.2 \times 1.34} = 0.22 \times \frac{2.2}{2.61} = 0.22 \times 0.84 = 0.19$$</p>
+<p>$$\text{Total}_A = 0.62 + 0.19 = 0.81$$</p>
+<p><strong>App E</strong> ($|d|=5$): $\text{tf}(\text{"photo"})=3$, $\text{tf}(\text{"editor"})=2$</p>
+<p>Length factor: $1 - 0.75 + 0.75 \times \frac{5}{4.8} = 0.25 + 0.78 = 1.03$</p>
+<p>$$\text{BM25}(\text{"photo"}, E) = 0.51 \times \frac{3 \times 2.2}{3 + 1.2 \times 1.03} = 0.51 \times \frac{6.6}{4.24} = 0.51 \times 1.56 = 0.79$$</p>
+<p>$$\text{BM25}(\text{"editor"}, E) = 0.22 \times \frac{2 \times 2.2}{2 + 1.2 \times 1.03} = 0.22 \times \frac{4.4}{3.24} = 0.22 \times 1.36 = 0.30$$</p>
+<p>$$\text{Total}_E = 0.79 + 0.30 = 1.09$$</p>
+<p><strong>App C</strong> ($|d|=3$): $\text{tf}(\text{"photo"})=1$, $\text{tf}(\text{"editor"})=0$</p>
+<p>Length factor: $1 - 0.75 + 0.75 \times \frac{3}{4.8} = 0.25 + 0.47 = 0.72$</p>
+<p>$$\text{BM25}(\text{"photo"}, C) = 0.51 \times \frac{1 \times 2.2}{1 + 1.2 \times 0.72} = 0.51 \times \frac{2.2}{1.86} = 0.51 \times 1.18 = 0.60$$</p>
+<p>$$\text{Total}_C = 0.60 + 0 = 0.60$$</p>
+<p><strong>Comparison TF-IDF vs BM25:</strong>
+| App | TF-IDF | BM25 | Note |
+|---|---|---|---|
+| A | 1.24 | 0.81 | Legitimate app |
+| E | 1.97 | 1.09 | Keyword spam — gap narrowed significantly! |
+| C | 0.51 | 0.60 | Short doc — BM25 gives it relative boost |</p>
+<p>Key insight: BM25 dramatically reduced the advantage of keyword stuffing (E vs A gap: 59% in TF-IDF → 35% in BM25).</p>
+<hr />
+<h4 id="why-bm25s-new-terms-are-useful-summary">Why BM25's new terms are useful — Summary</h4>
+<table>
+<thead>
+<tr>
+<th>BM25 Innovation</th>
+<th>What it fixes</th>
+<th>Without it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>tf saturation (k1)</td>
+<td>Keyword spam gets unfair advantage</td>
+<td>tf=100 scores 10x of tf=10</td>
+</tr>
+<tr>
+<td>Length norm (b, avgdl)</td>
+<td>Long docs dominate just by being long</td>
+<td>A 1000-word description always beats a 5-word title</td>
+</tr>
+<tr>
+<td>Probabilistic idf</td>
+<td>Better idf formula (handles edge cases)</td>
+<td>log(N/df) can be negative when df &gt; N/2</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h4 id="serving-how-bm25-actually-runs-not-embedding-based">Serving: How BM25 Actually Runs (NOT Embedding-Based!)</h4>
+<p><strong>BM25 is NOT an embedding method.</strong> It does NOT convert query/doc to dense vectors. It uses an <strong>inverted index</strong> — fundamentally different from ANN search.</p>
+<h4 id="what-is-an-inverted-index">What is an Inverted Index?</h4>
+<p><strong>"Inverted"</strong> means: instead of "doc → which terms it contains" (forward index), we store "term → which docs contain it" (inverted).</p>
+<p><strong>Critical: We do NOT store zeros!</strong> Only terms that actually appear in a doc are recorded.</p>
+<p>Wrong mental model (dense matrix — stores everything including zeros):</p>
+<pre><code>                    App_Lightroom  App_VSCO  App_Hinge  App_Candy ...
+&quot;photo&quot;                 2            1          0          0
+&quot;editor&quot;                1            1          0          0
+&quot;dating&quot;                0            0          3          0
+&quot;hinge&quot;                 0            0          2          0
+</code></pre>
+<p>This would be 50,000 apps × 100,000 terms = 5 billion cells, 99.9% zeros. Wasteful.</p>
+<p>Correct: Inverted Index (only stores non-zero entries):</p>
+<pre><code>&quot;photo&quot;   → [(Lightroom, tf=2), (VSCO, tf=1), (Snapseed, tf=1)]
+&quot;editor&quot;  → [(Lightroom, tf=1), (VSCO, tf=1), (Snapseed, tf=1)]
+&quot;dating&quot;  → [(Hinge, tf=1)]
+&quot;hinge&quot;   → [(Hinge, tf=1)]
+&quot;game&quot;    → [(Candy_Crush, tf=1)]
+</code></pre>
+<p><strong>"Hinge" app does NOT appear in "photo"'s posting list at all.</strong> Not stored as 0 — simply absent. Like a book index: you list pages where a topic appears, not pages where it doesn't.</p>
+<hr />
+<h4 id="offline-build-inverted-index-complete-example">Offline — Build Inverted Index (Complete Example):</h4>
+<p>Corpus:</p>
+<pre><code>App_Lightroom: &quot;professional photo editor and photo enhancement tool&quot;
+App_VSCO:      &quot;photo filters and video editor&quot;
+App_Hinge:     &quot;hinge dating app designed to be deleted&quot;
+App_Candy:     &quot;candy crush saga puzzle game&quot;
+App_Snapseed:  &quot;photo editor by google&quot;
+</code></pre>
+<p><strong>Step 1: Tokenize each document</strong> (remove stopwords like "and", "to", "be"):</p>
+<pre><code>Lightroom → [&quot;professional&quot;, &quot;photo&quot;, &quot;editor&quot;, &quot;photo&quot;, &quot;enhancement&quot;, &quot;tool&quot;]
+VSCO      → [&quot;photo&quot;, &quot;filters&quot;, &quot;video&quot;, &quot;editor&quot;]
+Hinge     → [&quot;hinge&quot;, &quot;dating&quot;, &quot;app&quot;, &quot;designed&quot;, &quot;deleted&quot;]
+Candy     → [&quot;candy&quot;, &quot;crush&quot;, &quot;saga&quot;, &quot;puzzle&quot;, &quot;game&quot;]
+Snapseed  → [&quot;photo&quot;, &quot;editor&quot;, &quot;google&quot;]
+</code></pre>
+<p><strong>Step 2: Process each doc, append to posting lists:</strong></p>
+<p>Processing Lightroom:</p>
+<pre><code>&quot;professional&quot; → [(Lightroom, tf=1)]     ← new entry
+&quot;photo&quot;        → [(Lightroom, tf=2)]     ← new entry (appears twice!)
+&quot;editor&quot;       → [(Lightroom, tf=1)]     ← new entry
+&quot;enhancement&quot;  → [(Lightroom, tf=1)]     ← new entry
+&quot;tool&quot;         → [(Lightroom, tf=1)]     ← new entry
+</code></pre>
+<p>Processing VSCO (append to existing lists):</p>
+<pre><code>&quot;photo&quot;   → [(Lightroom,2), (VSCO,1)]      ← appended
+&quot;filters&quot; → [(VSCO,1)]                      ← new entry
+&quot;video&quot;   → [(VSCO,1)]                      ← new entry
+&quot;editor&quot;  → [(Lightroom,1), (VSCO,1)]      ← appended
+</code></pre>
+<p>Processing Hinge:</p>
+<pre><code>&quot;hinge&quot;    → [(Hinge,1)]      ← new entry (completely separate from photo/editor!)
+&quot;dating&quot;   → [(Hinge,1)]      ← new entry
+&quot;app&quot;      → [(Hinge,1)]      ← new entry
+&quot;designed&quot; → [(Hinge,1)]      ← new entry
+&quot;deleted&quot;  → [(Hinge,1)]      ← new entry
+</code></pre>
+<p><strong>Note: Hinge's tokens never touch the "photo" or "editor" posting lists. They are completely independent.</strong></p>
+<p><strong>Step 3: Final inverted index after all docs processed:</strong></p>
+<pre><code>┌──────────────┬──────────────────────────────────────────────────┐
+│ Term         │ Posting List                                      │
+├──────────────┼──────────────────────────────────────────────────┤
+│ &quot;photo&quot;      │ [(Lightroom,2), (VSCO,1), (Snapseed,1)]         │
+│ &quot;editor&quot;     │ [(Lightroom,1), (VSCO,1), (Snapseed,1)]         │
+│ &quot;professional&quot;│ [(Lightroom,1)]                                 │
+│ &quot;enhancement&quot;│ [(Lightroom,1)]                                   │
+│ &quot;tool&quot;       │ [(Lightroom,1)]                                   │
+│ &quot;filters&quot;    │ [(VSCO,1)]                                        │
+│ &quot;video&quot;      │ [(VSCO,1)]                                        │
+│ &quot;hinge&quot;      │ [(Hinge,1)]                                       │
+│ &quot;dating&quot;     │ [(Hinge,1)]                                       │
+│ &quot;app&quot;        │ [(Hinge,1)]                                       │
+│ &quot;designed&quot;   │ [(Hinge,1)]                                       │
+│ &quot;deleted&quot;    │ [(Hinge,1)]                                       │
+│ &quot;candy&quot;      │ [(Candy,1)]                                       │
+│ &quot;crush&quot;      │ [(Candy,1)]                                       │
+│ &quot;game&quot;       │ [(Candy,1)]                                       │
+│ &quot;google&quot;     │ [(Snapseed,1)]                                    │
+│ ...          │ ...                                                │
+└──────────────┴──────────────────────────────────────────────────┘
+</code></pre>
+<p><strong>Step 4: Pre-compute global statistics:</strong></p>
+<pre><code>N = 5 (total docs)
+avgdl = (6 + 4 + 5 + 5 + 3) / 5 = 4.6
+
+Document lengths (after stopword removal):
+  |Lightroom| = 6, |VSCO| = 4, |Hinge| = 5, |Candy| = 5, |Snapseed| = 3
+
+df (= posting list length, instantly available):
+  df(&quot;photo&quot;) = 3
+  df(&quot;editor&quot;) = 3
+  df(&quot;hinge&quot;) = 1
+
+idf (pre-computed from df):
+  idf(&quot;photo&quot;) = log(5/3) = 0.51
+  idf(&quot;editor&quot;) = log(5/3) = 0.51
+  idf(&quot;hinge&quot;) = log(5/1) = 1.61
+</code></pre>
+<p><strong>Yes, idf is pre-computed.</strong> Because $N$ and $\text{df}(t)$ are fixed after indexing.
+<strong>Yes, tf is pre-stored</strong> in the posting list entries. Query time just reads it.</p>
+<hr />
+<h4 id="online-query-time-execution">Online — Query Time Execution:</h4>
+<p><strong>Query: "photo editor"</strong></p>
+<pre><code>Step 1: Tokenize query → [&quot;photo&quot;, &quot;editor&quot;]
+
+Step 2: Look up posting lists (hash table lookup, O(1) per term)
+  &quot;photo&quot;  → [(Lightroom,2), (VSCO,1), (Snapseed,1)]
+  &quot;editor&quot; → [(Lightroom,1), (VSCO,1), (Snapseed,1)]
+
+Step 3: Candidate set = union of posting lists
+  candidates = {Lightroom, VSCO, Snapseed}
+
+  ★ Hinge and Candy are NOT candidates!
+  ★ They don't appear in &quot;photo&quot; or &quot;editor&quot; posting lists.
+  ★ We never even look at them. This is why it's fast!
+
+Step 4: For each candidate, compute BM25 using pre-stored tf, idf, |d|
+  score(Lightroom) = BM25(&quot;photo&quot;,Lightroom) + BM25(&quot;editor&quot;,Lightroom)
+  score(VSCO)      = BM25(&quot;photo&quot;,VSCO) + BM25(&quot;editor&quot;,VSCO)
+  score(Snapseed)  = BM25(&quot;photo&quot;,Snapseed) + BM25(&quot;editor&quot;,Snapseed)
+
+  (All values — tf, idf, |d|, avgdl — are pre-stored. Just plug into formula.)
+
+Step 5: Sort by score → return top-K
+</code></pre>
+<p><strong>Query: "hinge dating"</strong></p>
+<pre><code>Step 1: Tokenize → [&quot;hinge&quot;, &quot;dating&quot;]
+
+Step 2: Look up posting lists
+  &quot;hinge&quot;  → [(Hinge, tf=1)]
+  &quot;dating&quot; → [(Hinge, tf=1)]
+
+Step 3: candidates = {Hinge}  ← only 1 candidate!
+  Lightroom, VSCO, Snapseed, Candy → not considered at all.
+
+Step 4: score(Hinge) = BM25(&quot;hinge&quot;,Hinge) + BM25(&quot;dating&quot;,Hinge)
+
+Step 5: Return [Hinge]
+</code></pre>
+<hr />
+<h4 id="why-inverted-index-is-fast-the-key-insight">Why Inverted Index is fast — the key insight:</h4>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>What it computes</th>
+<th># computations for "photo editor"</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Brute force</td>
+<td>Score ALL 50,000 apps</td>
+<td>50,000</td>
+</tr>
+<tr>
+<td>Inverted index</td>
+<td>Only score apps in posting lists</td>
+<td>~3,000 (apps containing "photo" or "editor")</td>
+</tr>
+</tbody>
+</table>
+<p>For rare queries like "hinge dating": posting lists may only have 50 entries → 50 computations instead of 50,000. <strong>1000x speedup.</strong></p>
+<p>The fundamental trick: <strong>if a query term doesn't appear in a doc, that doc's BM25 contribution for that term = 0. So skip it entirely.</strong></p>
+<hr />
+<h4 id="why-not-convert-to-tf-idf-embedding-cosine">Why NOT convert to TF-IDF embedding + cosine?</h4>
+<p>Some people confuse "TF-IDF vector" with dense embedding:
+- A TF-IDF vector is $|V|$-dimensional ($V$ = vocab size, e.g. 100,000 dims)
+- It's extremely <strong>sparse</strong> (most dimensions are 0)
+- You COULD compute cosine similarity between query TF-IDF vector and all doc TF-IDF vectors
+- But this is <strong>slower</strong> than inverted index lookup! Inverted index skips all terms not in the query
+- Inverted index: $O(|\text{query terms}| \times \text{avg posting list length})$
+- Dense vector cosine: $O(N \times V)$ — much worse</p>
+<p><strong>Bottom line:</strong> BM25 serving = inverted index lookup + scoring formula. Fast, simple, no ML model needed, no training needed. That's why it's the universal baseline.</p>
+<h4 id="faq-bm25-serving">FAQ — BM25 Serving</h4>
+<p><strong>Q: Do we store (hinge, 0) in "photo"'s posting list?</strong></p>
+<p>No! Only non-zero entries are stored. Hinge has no record under "photo."</p>
+<p><strong>Q: Is idf pre-computed?</strong></p>
+<p>Yes. $\text{idf}(t) = \log(N / \text{df}(t))$. Both $N$ and $\text{df}$ are fixed after indexing.</p>
+<p><strong>Q: Is tf pre-computed?</strong></p>
+<p>Yes. Stored in the posting list: <code>(doc_id, tf)</code>. Query time just reads it.</p>
+<p><strong>Q: What if a new app is added?</strong></p>
+<p>Tokenize it, append to relevant posting lists, update $N$, $\text{avgdl}$, and affected $\text{df}$ values. Incremental — no full rebuild needed.</p>
+<p><strong>Q: What if query contains a term that never appeared in any app (OOV)?</strong></p>
+<p>BM25 returns <strong>zero results</strong> for that term. If ALL query terms are OOV, the candidate set is empty.</p>
+<p>Example: query = "hahaha"
+- "hahaha" is not in the inverted index (no app ever contained this token)
+- Posting list lookup returns empty
+- Candidates = {} → no results</p>
+<p>This is the fundamental limitation of lexical matching: <strong>if a token was never seen in the corpus, BM25 cannot do anything with it.</strong> This is a primary motivation for why semantic retrieval is needed alongside BM25.</p>
+<hr />
+<h4 id="intuitive-summary-of-the-entire-bm25-serving-flow">Intuitive Summary of the Entire BM25 Serving Flow</h4>
+<ol>
+<li>
+<p><strong>Offline</strong>: for each app, tokenize and count each token's frequency (tf) within that app. Build a reverse mapping: token → list of (app, tf). Also pre-compute each token's idf from how many apps contain it.</p>
+</li>
+<li>
+<p><strong>Online</strong>: query comes in → tokenize → for each query token, look up the reverse mapping to find which apps contain it and their pre-stored tf. The candidate set is only apps that share at least one token with the query. Compute BM25 score using the pre-stored tf, idf, doc length. Apps that share zero tokens with the query are never even considered — this is why it's fast.</p>
+</li>
+<li>
+<p><strong>Edge case</strong>: if a query token never appeared in any app's corpus, the posting list is empty. BM25 has zero candidates for that token. If the entire query is OOV, BM25 returns nothing.</p>
+</li>
+</ol>
+<hr />
+<h4 id="why-bm25-alone-is-not-enough-motivation-for-semantic-retrieval">Why BM25 Alone is Not Enough — Motivation for Semantic Retrieval</h4>
+<p>BM25's OOV problem is just ONE reason semantic retrieval is needed. Here are ALL the reasons:</p>
+<table>
+<thead>
+<tr>
+<th>BM25 Limitation</th>
+<th>Example</th>
+<th>Semantic retrieval handles it because</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>OOV (out-of-vocabulary)</strong></td>
+<td>Query "hahaha" → 0 results</td>
+<td>Encoder maps any text to an embedding; even unseen tokens get a vector</td>
+</tr>
+<tr>
+<td><strong>Synonyms</strong></td>
+<td>"picture" vs "photo" — different tokens, BM25 can't match</td>
+<td>Encoder learns "picture" ≈ "photo" in embedding space</td>
+</tr>
+<tr>
+<td><strong>Paraphrases</strong></td>
+<td>"app to edit my photos" vs app titled "Lightroom"</td>
+<td>Encoder understands intent despite zero token overlap</td>
+</tr>
+<tr>
+<td><strong>Abbreviations/slang</strong></td>
+<td>"pic editor" or "fotoshop"</td>
+<td>Trained on noisy text, learns common variations</td>
+</tr>
+<tr>
+<td><strong>Conceptual matching</strong></td>
+<td>"make my selfie look better" → photo editing apps</td>
+<td>Encoder captures intent-level semantics</td>
+</tr>
+<tr>
+<td><strong>Multilingual</strong></td>
+<td>Query in Spanish, app name in English</td>
+<td>Multilingual encoders map both to same space</td>
+</tr>
+<tr>
+<td><strong>Misspellings</strong></td>
+<td>"camra" — not in index</td>
+<td>Subword tokenization (WordPiece) partially handles; embedding is close to "camera"</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The deeper reason:</strong> BM25 matches on <strong>surface form</strong> (exact tokens). Semantic retrieval matches on <strong>meaning</strong> (learned representations). These are fundamentally complementary:</p>
+<ul>
+<li>BM25 is best when: user types the exact app name ("Instagram"), exact keyword match matters</li>
+<li>Semantic is best when: user describes what they want in natural language ("app to meet new people")</li>
+</ul>
+<p><strong>Neither alone is sufficient.</strong> BM25 has perfect precision for exact matches but zero recall for semantic gaps. Semantic has broad recall but may miss exact token matches that BM25 nails. This is why production systems always run both in parallel and union the results.</p>
+<h4 id="do-bm25tf-idf-need-training">Do BM25/TF-IDF need training?</h4>
+<p><strong>NO.</strong> They are completely unsupervised:
+- Only need corpus statistics (document lengths, term frequencies, doc frequencies)
+- k1 and b have good defaults (1.2, 0.75); can optionally tune on validation set
+- No gradient descent, no GPU, no labeled data
+- This is why BM25 remains the #1 first-stage retrieval baseline even in 2026</p>
+<blockquote>
+<p><strong>How to say it in interview (BM25 vs TF-IDF):</strong></p>
+<p>"Both TF-IDF and BM25 are term-based scoring functions that don't need any training — they only rely on corpus statistics. The key difference is that TF-IDF has a linear term frequency component, which means keyword stuffing gets rewarded: if an app repeats 'photo' 100 times, it scores much higher than one that mentions it twice. BM25 fixes this with two innovations: first, a saturation function controlled by parameter k1 that gives diminishing returns after a term appears enough times — so repeating 'photo' 100 times barely helps more than 10 times. Second, a length normalization controlled by parameter b that penalizes long documents proportionally — one mention of 'photo' in a 3-word title is more informative than in a 1000-word description.</p>
+<p>For serving, BM25 uses an inverted index, not embeddings. Offline, we tokenize each app and build a reverse mapping: term → list of apps that contain it with their tf. Online, when a query comes in, we tokenize it, look up each query token in the inverted index, and only score apps that actually contain at least one query token. This means we skip all irrelevant apps entirely — if a query is 'photo editor,' we never even look at a dating app because it doesn't appear in those posting lists. That's what makes it fast. And it needs zero training — no gradients, no GPU, just corpus statistics."</p>
+<p><strong>How to say it (Why BM25 isn't enough, need semantic):</strong></p>
+<p>"BM25 fundamentally matches on surface form — exact token overlap. So if a user searches 'picture editor' but an app is titled 'Lightroom,' BM25 gives zero score because there's no token overlap. Similarly, paraphrases like 'make my photos look better' won't match any specific app name. That's why we need semantic retrieval in parallel — a dual encoder that maps both query and app descriptions into the same embedding space, so semantically similar things end up close together regardless of exact wording. The two approaches are complementary: BM25 nails exact matches with perfect precision, semantic retrieval catches everything BM25 misses."</p>
+</blockquote>
+<hr />
+<h3 id="q4-why-dual-encoder-over-cross-encoder">Q4: Why Dual Encoder over Cross-Encoder?</h3>
+<h4 id="architecture-comparison">Architecture Comparison</h4>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Dual Encoder</th>
+<th>Cross-Encoder</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Architecture</strong></td>
+<td>Query and Doc encoded separately into embeddings, score = dot product / cosine</td>
+<td>Query + Doc concatenated, fed into single transformer, output = relevance score</td>
+</tr>
+<tr>
+<td><strong>Interaction</strong></td>
+<td>No cross-attention between query and doc</td>
+<td>Full cross-attention captures fine-grained token interactions</td>
+</tr>
+<tr>
+<td><strong>Offline compute</strong></td>
+<td>Doc embeddings pre-computed and stored</td>
+<td>Must re-compute for every (query, doc) pair</td>
+</tr>
+<tr>
+<td><strong>Online latency</strong></td>
+<td>Encode query (~5ms) + ANN lookup (~5ms) = ~10ms total</td>
+<td>Each pair requires full model forward pass (~20-50ms × N candidates)</td>
+</tr>
+<tr>
+<td><strong>Scalability</strong></td>
+<td>Millions of candidates via ANN</td>
+<td>Only feasible for top 50-500 candidates</td>
+</tr>
+<tr>
+<td><strong>Quality</strong></td>
+<td>Good but limited by independence assumption</td>
+<td>Higher quality due to cross-attention</td>
+</tr>
+</tbody>
+</table>
+<h4 id="why-dual-encoder-for-retrieval">Why Dual Encoder for Retrieval:</h4>
+<ol>
+<li><strong>Latency</strong> — Cannot run cross-encoder on 50K candidates; dual encoder + ANN handles it in &lt;10ms</li>
+<li><strong>Decoupling</strong> — App embeddings computed offline, stored in vector index (FAISS/ScaNN); only query encoding is real-time</li>
+<li><strong>Incremental updates</strong> — New app comes in → compute one embedding → add to index; no full reindex needed</li>
+<li><strong>Multi-use</strong> — Same app embeddings can serve different retrieval needs</li>
+</ol>
+<h4 id="not-only-latency-other-reasons">Not <em>only</em> latency — other reasons:</h4>
+<ul>
+<li><strong>Caching</strong> — App embeddings don't change with each query, massive compute savings</li>
+<li><strong>Independence</strong> — Can update query encoder and app encoder on different schedules</li>
+<li><strong>Infrastructure simplicity</strong> — Standard ANN serving infra (FAISS, ScaNN, Milvus, Pinecone)</li>
+</ul>
+<h4 id="practical-architecture">Practical architecture:</h4>
+<pre><code>Retrieval: Dual Encoder + ANN → top 500 candidates (recall-focused)
+Ranking:   Cross-Encoder → top 20 candidates (precision-focused)
+</code></pre>
+<blockquote>
+<p><strong>How to say it in interview:</strong></p>
+<p>"I'd use a dual encoder for retrieval rather than a cross-encoder, primarily because of scalability. A cross-encoder concatenates the query and document together and passes them through a single transformer — this gives the highest quality because every query token can attend to every document token. But it means you have to run the full model for every query-document pair. With 50,000 candidates, that's 50,000 forward passes per query — way too slow for real-time serving.</p>
+<p>A dual encoder solves this by encoding query and documents independently into separate embeddings. The key insight is: document embeddings don't depend on the query, so we pre-compute and cache all 50K app embeddings offline. At serving time, we only need to encode the query — one forward pass — then do a dot product search via ANN, which takes under 10 milliseconds. So it's not just latency — it's also about decoupling: we can update the app index incrementally when new apps arrive, without re-running the query encoder.</p>
+<p>The trade-off is quality. Since query and document never 'see' each other's tokens during encoding, the model can't capture fine-grained interactions. That's why we use the cross-encoder downstream in ranking — on just the top 100-500 candidates where we can afford the per-pair inference cost. So it's dual encoder for recall at the top of the funnel, cross-encoder for precision at the bottom."</p>
+</blockquote>
+<hr />
+<h3 id="q5-recall-precision-roc-auc-pr-auc">Q5: Recall, Precision, ROC-AUC, PR-AUC</h3>
+<h4 id="confusion-matrix-basics">Confusion Matrix Basics</h4>
+<p>For any binary prediction (relevant/irrelevant):</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Predicted Positive</th>
+<th>Predicted Negative</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Actually Positive</strong></td>
+<td>TP (True Positive)</td>
+<td>FN (False Negative)</td>
+</tr>
+<tr>
+<td><strong>Actually Negative</strong></td>
+<td>FP (False Positive)</td>
+<td>TN (True Negative)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="precision-and-recall-two-formulations">Precision and Recall — Two formulations</h4>
+<p><strong>Using TP/FP/FN:</strong></p>
+<p>$$\text{Precision} = \frac{TP}{TP + FP}$$</p>
+<ul>
+<li>"Of everything I predicted positive, how many are actually positive?"</li>
+<li>Denominator = all items you predicted as positive (returned/retrieved)</li>
+</ul>
+<p>$$\text{Recall} = \frac{TP}{TP + FN}$$</p>
+<ul>
+<li>"Of everything that IS positive, how many did I find?"</li>
+<li>Denominator = all actually positive items (whether you found them or not)</li>
+</ul>
+<p><strong>Using retrieval notation (equivalent, applied to top-K):</strong></p>
+<p>$$\text{Precision@K} = \frac{|{\text{relevant}} \cap {\text{top-K returned}}|}{K}$$</p>
+<p>$$\text{Recall@K} = \frac{|{\text{relevant}} \cap {\text{top-K returned}}|}{|{\text{all relevant in corpus}}|}$$</p>
+<p><strong>Mapping between the two:</strong>
+- $TP$ = relevant items in your top-K
+- $FP$ = irrelevant items in your top-K
+- $FN$ = relevant items you missed (not in top-K)
+- $TN$ = irrelevant items you correctly didn't return</p>
+<h4 id="in-ads-matching-context">In ads matching context:</h4>
+<ul>
+<li><strong>Retrieval stage</strong> optimizes for <strong>Recall</strong> — must not miss relevant ads (cast a wide net). A few irrelevant candidates in the pool is OK, ranking will filter them.</li>
+<li><strong>Ranking stage</strong> optimizes for <strong>Precision / NDCG</strong> — what's actually shown to users must be high quality.</li>
+</ul>
+<hr />
+<h4 id="roc-auc-vs-pr-auc-which-is-useful-for-sourcingranking">ROC-AUC vs PR-AUC — Which is useful for sourcing/ranking?</h4>
+<h5 id="roc-curve-receiver-operating-characteristic">ROC Curve (Receiver Operating Characteristic)</h5>
+<p>$$\text{ROC plots: } \text{TPR (Recall)} = \frac{TP}{TP+FN} \quad \text{vs} \quad \text{FPR} = \frac{FP}{FP+TN}$$</p>
+<ul>
+<li>X-axis: False Positive Rate (FPR)</li>
+<li>Y-axis: True Positive Rate (TPR = Recall)</li>
+<li>AUC = area under this curve (0.5 = random, 1.0 = perfect)</li>
+</ul>
+<p><strong>Problem with ROC-AUC for ads/retrieval:</strong></p>
+<p>ROC-AUC uses <strong>TN (True Negatives)</strong> in FPR's denominator. In retrieval:
+- Corpus = 50,000 apps
+- Relevant to "photo editor" = maybe 200 apps
+- TN = 49,800 irrelevant apps you correctly didn't return</p>
+<p>TN is <strong>massive</strong> (49,800). This makes FPR almost always near 0, regardless of model quality. ROC-AUC stays high even for bad models because the denominator ($FP + TN$) is dominated by the huge TN count.</p>
+<p><strong>Example:</strong> Model retrieves 500 apps, 100 are relevant, 400 are irrelevant:
+- $FPR = \frac{400}{400 + 49,400} = 0.008$ — looks great! But you returned 400 irrelevant items.</p>
+<h5 id="pr-curve-precision-recall-curve">PR Curve (Precision-Recall Curve)</h5>
+<p>$$\text{PR plots: } \text{Precision} = \frac{TP}{TP+FP} \quad \text{vs} \quad \text{Recall} = \frac{TP}{TP+FN}$$</p>
+<ul>
+<li>X-axis: Recall</li>
+<li>Y-axis: Precision</li>
+<li>AUC = area under this curve (higher = better)</li>
+</ul>
+<p><strong>Why PR-AUC is better for ads/retrieval/ranking:</strong></p>
+<p>PR-AUC does <strong>NOT use TN at all!</strong> Neither Precision nor Recall involves TN:
+- $\text{Precision} = \frac{TP}{TP + FP}$ — no TN
+- $\text{Recall} = \frac{TP}{TP + FN}$ — no TN</p>
+<p>This means PR-AUC is <strong>not fooled by the massive number of irrelevant items</strong> in the corpus. It directly measures: "among what you returned (TP+FP), how good is it?" and "of what exists (TP+FN), how much did you find?"</p>
+<h5 id="summary-when-to-use-which">Summary: When to use which?</h5>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Uses TN?</th>
+<th>Good for</th>
+<th>Bad for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ROC-AUC</strong></td>
+<td>Yes (in FPR denominator)</td>
+<td>Balanced datasets (50/50 pos/neg)</td>
+<td>Imbalanced data (retrieval, ads, fraud)</td>
+</tr>
+<tr>
+<td><strong>PR-AUC</strong></td>
+<td><strong>No</strong></td>
+<td>Imbalanced datasets where positives are rare</td>
+<td>Balanced datasets (both work, ROC is simpler)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>For ads sourcing/retrieval:</strong>
+- Relevant apps = ~200 out of 50,000 → <strong>extremely imbalanced</strong> (0.4% positive rate)
+- ROC-AUC will be misleadingly high (&gt;0.95) even for mediocre models
+- <strong>PR-AUC is the correct metric</strong> — it directly penalizes irrelevant retrievals</p>
+<p><strong>For ranking (after retrieval):</strong>
+- Candidate set is already filtered to ~500, maybe 100 are relevant → still imbalanced (20%)
+- <strong>PR-AUC still more informative</strong> than ROC-AUC
+- But in practice, ranking uses <strong>NDCG</strong> (considers position) which is even better</p>
+<h5 id="practical-usage-in-ads-systems">Practical usage in ads systems:</h5>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Primary metrics</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Retrieval model (offline eval)</td>
+<td>Recall@K, PR-AUC</td>
+<td>Must find all relevant items; PR-AUC for overall quality</td>
+</tr>
+<tr>
+<td>Relevance model (offline eval)</td>
+<td>Precision@K, PR-AUC, F1</td>
+<td>Must accurately judge relevance</td>
+</tr>
+<tr>
+<td>Ranking model (offline eval)</td>
+<td>NDCG@K, MAP</td>
+<td>Position-aware metrics for ranked lists</td>
+</tr>
+<tr>
+<td>All models (online eval)</td>
+<td>CTR, CVR, Revenue</td>
+<td>Business outcomes via A/B test</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h4 id="why-pr-auc-roc-auc-for-retrieval-intuitive-explanation">Why PR-AUC &gt; ROC-AUC for retrieval — Intuitive explanation</h4>
+<p>Imagine two retrieval models:
+- <strong>Model A</strong>: retrieves 500 apps, 100 relevant + 400 irrelevant
+- <strong>Model B</strong>: retrieves 500 apps, 150 relevant + 350 irrelevant</p>
+<p>ROC-AUC perspective:
+- Both have $FPR \approx 0.008$ (because TN ≈ 49,500 dominates). ROC barely distinguishes them.</p>
+<p>PR-AUC perspective:
+- Model A: Precision = 100/500 = 0.20
+- Model B: Precision = 150/500 = 0.30 — clearly better, and PR curve shows it.</p>
+<p><strong>The core insight: In retrieval, you don't care about TN (apps you correctly ignored). You care about TP vs FP (quality of what you retrieved) and TP vs FN (coverage of relevant items). PR-AUC measures exactly these two things.</strong></p>
+<blockquote>
+<p><strong>How to say it in interview (Precision/Recall):</strong></p>
+<p>"Precision asks: of everything I returned, how much is actually relevant? The denominator is TP plus FP — the total number of items I retrieved. Recall asks: of everything that IS relevant in the entire corpus, how much did I find? The denominator is TP plus FN — all relevant items whether I found them or not. For retrieval, we care most about recall because we can't rank what we never retrieved. For ranking, precision and NDCG matter more because what we show the user must be high quality."</p>
+<p><strong>How to say it (PR-AUC vs ROC-AUC):</strong></p>
+<p>"I'd use PR-AUC over ROC-AUC for evaluating retrieval models. The reason is that ROC-AUC uses true negatives in the false positive rate denominator. In retrieval, we have 50,000 apps but maybe only 200 are relevant to any given query — so true negatives dominate at 49,800. This means the false positive rate stays near zero regardless of model quality, making ROC-AUC misleadingly high even for bad models.</p>
+<p>PR-AUC avoids this entirely — neither precision nor recall use true negatives in their formulas. Precision is TP over TP plus FP, recall is TP over TP plus FN. So PR-AUC directly measures what we actually care about: the quality of what we retrieved and the coverage of what exists. For any highly imbalanced problem like retrieval, where positive examples are rare, PR-AUC is the more informative metric."</p>
+</blockquote>
+<hr />
+<h3 id="q6-revenue-up-but-relevance-drops-how-to-fix">Q6: Revenue up but relevance drops — how to fix?</h3>
+<p><strong>Root cause:</strong> Dual encoder trained on conversion (click/download) data learns "what gets clicked" not "what is relevant." Popular/clickbait apps dominate; niche-but-relevant apps get suppressed.</p>
+<h4 id="solution-1-multi-objective-training">Solution 1: Multi-objective training</h4>
+<p>$$\mathcal{L} = \alpha \cdot \mathcal{L}<em>{\text{conversion}}(\text{conversion pairs}) + \beta \cdot \mathcal{L}</em>{\text{relevance}}(\text{relevance pairs})$$</p>
+<ul>
+<li>Get relevance labels from human annotation or LLM-as-judge</li>
+<li>Train model to balance both signals</li>
+</ul>
+<h4 id="solution-2-relevance-guardrail-model">Solution 2: Relevance guardrail model</h4>
+<ul>
+<li>Train a separate <strong>relevance classifier</strong> (can be cross-encoder for higher quality)</li>
+<li>After retrieval, filter out candidates with relevance_score &lt; threshold</li>
+<li>Acts as a hard gate before ranking</li>
+</ul>
+<h4 id="solution-3-constrained-optimization-in-ranking">Solution 3: Constrained optimization in ranking</h4>
+<p>$$\max \mathbb{E}[\text{revenue}] \quad \text{s.t.} \quad \text{relevance_score} \geq \theta \; \forall \; \text{served ads}$$</p>
+<p>Or soft version:</p>
+<p>$$\text{final_score} = \lambda \cdot \text{revenue_score} + (1 - \lambda) \cdot \text{relevance_score}$$</p>
+<h4 id="solution-4-training-data-debiasing">Solution 4: Training data debiasing</h4>
+<ul>
+<li>Add <strong>relevance-annotated hard negatives</strong> — apps that were clicked but human-judged irrelevant</li>
+<li>Reduce weight on noisy click signals</li>
+<li>Use impression-weighted sampling to account for position bias</li>
+</ul>
+<h4 id="solution-5-separate-retrieval-paths">Solution 5: Separate retrieval paths</h4>
+<ul>
+<li>Keep conversion-optimized retrieval path for revenue</li>
+<li>Add relevance-optimized retrieval path (trained on relevance labels)</li>
+<li>Merge results with relevance minimum threshold enforced</li>
+</ul>
+<h4 id="apple-specific-consideration">Apple-specific consideration:</h4>
+<ul>
+<li>Privacy constraints naturally push toward <strong>contextual relevance</strong> (query-app semantic match) over behavioral exploitation</li>
+<li>This aligns business model with relevance — feature not bug</li>
+</ul>
+<blockquote>
+<p><strong>How to say it in interview:</strong></p>
+<p>"This is a classic tension in ads systems — our retrieval model is trained on conversion data like clicks and downloads, so it learns 'what gets engaged with' rather than 'what's truly relevant.' Popular or clickbait apps get over-promoted even when they don't match the query well.</p>
+<p>I'd address this at multiple levels. First, in training: add a relevance objective to the loss function alongside conversion — make it multi-objective so the model balances both signals. The relevance labels can come from human annotation or LLM-as-judge scoring.</p>
+<p>Second, add a standalone relevance model as a quality gate after retrieval. This can be a cross-encoder trained purely on relevance labels — it acts as a hard filter: if an app scores below a relevance threshold, it gets dropped regardless of how high its revenue potential is.</p>
+<p>Third, in the ranking stage, use constrained optimization — maximize expected revenue subject to a minimum relevance score. This way we're not giving up revenue entirely, but we're guaranteeing a baseline of quality.</p>
+<p>For Apple specifically, the privacy-centric approach actually helps here — since we can't rely heavily on user behavioral data, we're naturally pushed toward contextual relevance based on query-app semantic matching, which tends to correlate with true relevance better than pure behavioral signals."</p>
+</blockquote>
+<hr />
+<h2 id="part-2-predicted-follow-up-questions">Part 2: Predicted Follow-up Questions</h2>
+<h3 id="q7-how-to-train-a-dual-encoder-data-labels-loss-design">Q7: How to train a Dual Encoder? Data? Labels? Loss Design?</h3>
+<h4 id="training-data-sources-from-search-logs">Training data sources (from search logs):</h4>
+<table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Label Type</th>
+<th>Strength</th>
+<th>Volume</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Downloaded app</td>
+<td>Strong positive</td>
+<td>High quality, clear intent</td>
+<td>Sparse</td>
+</tr>
+<tr>
+<td>Clicked app</td>
+<td>Weak positive</td>
+<td>Noisy (curiosity clicks, misclicks)</td>
+<td>Abundant</td>
+</tr>
+<tr>
+<td>Impressed but not clicked</td>
+<td>Weak negative</td>
+<td>Very noisy (position bias)</td>
+<td>Abundant</td>
+</tr>
+<tr>
+<td>Random app from corpus</td>
+<td>Easy negative</td>
+<td>Clean but uninformative</td>
+<td>Unlimited</td>
+</tr>
+<tr>
+<td>BM25 top result not clicked</td>
+<td>Hard negative</td>
+<td>Informative for model</td>
+<td>Moderate</td>
+</tr>
+</tbody>
+</table>
+<h4 id="position-bias-in-training-data-why-retrieval-models-are-also-affected">Position Bias in Training Data — Why Retrieval Models Are Also Affected</h4>
+<p><strong>Common misconception:</strong> "Position bias only affects ranking models (CTR prediction). Retrieval doesn't have this problem."</p>
+<p><strong>Wrong.</strong> Any model trained on behavioral labels (click/install) is affected, including retrieval dual encoders.</p>
+<p><strong>Why retrieval has position bias:</strong></p>
+<p>The training labels for retrieval come from click/install logs. But clicks are <strong>confounded by position</strong>:</p>
+<pre><code>Position 1 app → user sees it → clicks it → becomes POSITIVE label
+Position 8 app → user never scrolls down → no click → becomes NEGATIVE label
+
+But the position-8 app might be MORE relevant! It just wasn't seen.
+</code></pre>
+<p>So your training data is polluted:
+- Some "positives" are just things that happened to be in position 1 (not necessarily relevant)
+- Some "negatives" are actually highly relevant but were in low positions (never seen by user)</p>
+<p><strong>This directly hurts retrieval model quality:</strong> the model learns "things that the previous system ranked high" rather than "things that are truly relevant to the query."</p>
+<p><strong>Solutions for retrieval models:</strong></p>
+<ol>
+<li><strong>Inverse Propensity Weighting (IPW):</strong></li>
+</ol>
+<p>$$w_i = \frac{1}{P(\text{click} \mid \text{position}_i)}$$</p>
+<ul>
+<li>Clicks from lower positions get higher weight (user overcame position disadvantage → stronger relevance signal)</li>
+<li>Clicks from position 1 get lower weight (might just be position effect)</li>
+</ul>
+<p><strong>How to compute $P(\text{click} \mid \text{position})$:</strong></p>
+<p>Simply aggregate from historical logs — count the average CTR at each position across all queries:</p>
+<p>$$P(\text{click} \mid \text{pos} = k) = \frac{\text{total clicks at position } k}{\text{total impressions at position } k}$$</p>
+<p>Example from logs (aggregated over millions of queries):</p>
+<table>
+<thead>
+<tr>
+<th>Position</th>
+<th>Impressions</th>
+<th>Clicks</th>
+<th>$P(\text{click} \mid \text{pos})$</th>
+<th>IPW weight $w = 1/P$</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>10,000,000</td>
+<td>3,000,000</td>
+<td>0.30</td>
+<td>3.3</td>
+</tr>
+<tr>
+<td>2</td>
+<td>10,000,000</td>
+<td>2,000,000</td>
+<td>0.20</td>
+<td>5.0</td>
+</tr>
+<tr>
+<td>3</td>
+<td>9,000,000</td>
+<td>1,350,000</td>
+<td>0.15</td>
+<td>6.7</td>
+</tr>
+<tr>
+<td>5</td>
+<td>7,000,000</td>
+<td>700,000</td>
+<td>0.10</td>
+<td>10.0</td>
+</tr>
+<tr>
+<td>8</td>
+<td>4,000,000</td>
+<td>200,000</td>
+<td>0.05</td>
+<td>20.0</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Intuition:</strong> Position 1 has 30% CTR (high, partly because it's just "seen first"). Position 8 has 5% CTR. A click at position 8 is <strong>much</strong> more meaningful — the user scrolled all the way down and still clicked → strong relevance signal. So it gets 20x weight vs 3.3x for position 1.</p>
+<p><strong>How the weight $w_i$ is used in training:</strong></p>
+<p>It multiplies the loss for that training sample:</p>
+<p>$$\mathcal{L}<em>{\text{debiased}} = \frac{1}{N} \sum</em>{i=1}^{N} w_i \cdot \mathcal{L}_i$$</p>
+<p><strong>Worked example:</strong></p>
+<p>Training batch has 3 clicked (query, app) pairs:</p>
+<table>
+<thead>
+<tr>
+<th>Sample</th>
+<th>Query</th>
+<th>App clicked</th>
+<th>Position</th>
+<th>$P(\text{click}\mid\text{pos})$</th>
+<th>$w_i$</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>"photo editor"</td>
+<td>Lightroom</td>
+<td>pos=1</td>
+<td>0.30</td>
+<td>3.3</td>
+</tr>
+<tr>
+<td>2</td>
+<td>"photo editor"</td>
+<td>VSCO</td>
+<td>pos=3</td>
+<td>0.15</td>
+<td>6.7</td>
+</tr>
+<tr>
+<td>3</td>
+<td>"photo editor"</td>
+<td>Darkroom</td>
+<td>pos=8</td>
+<td>0.05</td>
+<td>20.0</td>
+</tr>
+</tbody>
+</table>
+<p>Without IPW: all 3 samples contribute equally to the loss. Model treats position-1 click as just as informative as position-8 click.</p>
+<p>With IPW:
+   - Lightroom (pos 1): loss × 3.3 → low weight, maybe user just clicked because it was first
+   - VSCO (pos 3): loss × 6.7 → medium weight
+   - Darkroom (pos 8): loss × 20.0 → high weight, user really wanted this app</p>
+<p>$$\mathcal{L} = \frac{1}{3}(3.3 \cdot \mathcal{L}_1 + 6.7 \cdot \mathcal{L}_2 + 20.0 \cdot \mathcal{L}_3)$$</p>
+<p>The model learns more from Darkroom's click signal (it's a higher-confidence positive) and less from Lightroom's (it might be position effect, not true relevance).</p>
+<p><strong>In practice, weights are often normalized or clipped:</strong>
+   - Normalize: $w_i' = w_i / \sum w_j$ (prevents extreme weights from dominating)
+   - Clip: $w_i' = \min(w_i, w_{\max})$ where $w_{\max} = 20$ (prevents rare-position samples from exploding gradients)</p>
+<ol>
+<li><strong>Position as feature (for ranking, less common for retrieval):</strong></li>
+<li>Add position as input → model learns to deconfound</li>
+<li>
+<p>At inference, set position = constant for all candidates</p>
+</li>
+<li>
+<p><strong>Only use strong signals (downloads &gt; clicks):</strong></p>
+</li>
+<li>Downloads are less position-biased than clicks (user had to actively install)</li>
+<li>
+<p>Trade-off: much less training data</p>
+</li>
+<li>
+<p><strong>Randomization / Exploration:</strong></p>
+</li>
+<li>Occasionally show random orderings → collect unbiased click data</li>
+<li>
+<p>Expensive (hurts short-term revenue) but gives clean labels</p>
+</li>
+<li>
+<p><strong>Use "impression but not clicked" negatives carefully:</strong></p>
+</li>
+<li>Only treat top-3 positions not clicked as negatives (user definitely saw them)</li>
+<li>Don't use position 8+ as negatives (user might not have scrolled there)</li>
+</ol>
+<blockquote>
+<p><strong>How to say it in interview:</strong></p>
+<p>"Position bias isn't just a ranking problem — it affects retrieval too. Our training labels come from clicks and installs, but clicks are confounded by position. An app in position 1 gets clicked because it's seen, not necessarily because it's the most relevant. An app in position 8 might be more relevant but never gets clicked because the user didn't scroll.</p>
+<p>So when we train a retrieval model on this data, it learns 'what the previous system ranked high' rather than 'what's truly relevant.' The main fix I'd use is Inverse Propensity Weighting — upweight clicks from lower positions since those users overcame a position disadvantage, indicating stronger intent. I'd also be careful with negative labels: only count an impressed-but-not-clicked app as negative if it was in a top position where the user definitely saw it."</p>
+</blockquote>
+<hr />
+<h4 id="how-to-handle-strong-vs-weak-positives-in-training">How to handle strong vs weak positives in training?</h4>
+<p><strong>Approach 1: Weighted InfoNCE (most common in industry)</strong></p>
+<p>All positives go into the same contrastive loss, but with different importance weights:</p>
+<p>$$\mathcal{L}<em>i = -\log \frac{\exp(\text{sim}(q, d^+) / \tau)}{\sum</em>{j} \exp(\text{sim}(q, d_j) / \tau)}$$</p>
+<p>$$\mathcal{L}_{\text{weighted}} = \frac{1}{N} \sum_i w_i \cdot \mathcal{L}_i$$</p>
+<p>Where weights $w_i$: download = 2.0 (strong positive), click = 1.0 (weak positive).</p>
+<p><strong>Approach 2: Cosine Similarity MSE with soft labels (your suggestion — valid!)</strong></p>
+<p>$$\mathcal{L} = \frac{1}{N} \sum_i \left( \cos(\mathbf{q}_i, \mathbf{d}_i) - y_i \right)^2$$</p>
+<p>Where soft labels $y_i$:
+- download → $y = 1.0$
+- click → $y = 0.7$
+- impression no click → $y = 0.2$
+- random negative → $y = 0.0$</p>
+<p><strong>Pros of soft label approach:</strong>
+- Naturally encodes graded relevance (0.7 vs 1.0 vs 0.2)
+- Smoother gradient signal
+- No need to discretize into pos/neg</p>
+<p><strong>Cons vs InfoNCE:</strong>
+- InfoNCE does implicit hard negative mining via in-batch contrast
+- InfoNCE empirically outperforms MSE/cosine loss in most retrieval benchmarks
+- MSE loss doesn't push negatives apart as aggressively</p>
+<p><strong>Approach 3: Curriculum / Multi-stage training (practical best)</strong></p>
+<pre><code>Stage 1: Pre-train on large click data (abundant, noisy)
+  → Model learns basic semantic matching
+
+Stage 2: Fine-tune on download data (sparse, high quality)
+  → Model refines toward conversion-relevant matching
+
+Stage 3 (optional): Fine-tune on human relevance labels
+  → Model incorporates true relevance signal
+</code></pre>
+<h4 id="loss-functions-compared">Loss Functions Compared</h4>
+<table>
+<thead>
+<tr>
+<th>Loss</th>
+<th>Formula</th>
+<th>Best for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>InfoNCE</strong></td>
+<td>$-\log \frac{e^{s^+/\tau}}{\sum_j e^{s_j/\tau}}$</td>
+<td>Standard contrastive, hard 1/0 labels</td>
+</tr>
+<tr>
+<td><strong>Cosine MSE</strong></td>
+<td>$|\cos(\mathbf{q}, \mathbf{d}) - y|^2$</td>
+<td>Soft/graded labels</td>
+</tr>
+<tr>
+<td><strong>Triplet</strong></td>
+<td>$\max(0, s^- - s^+ + m)$</td>
+<td>When you have explicit (q, pos, neg) triples</td>
+</tr>
+<tr>
+<td><strong>Circle Loss</strong></td>
+<td>Unified on similarity pairs</td>
+<td>Flexible hard/soft distinction</td>
+</tr>
+</tbody>
+</table>
+<h4 id="multi-objective-dual-encoder-how-it-works">Multi-Objective Dual Encoder — How It Works</h4>
+<p><strong>Key constraint:</strong> In retrieval, you can only have ONE similarity score for ANN search. So multi-objective must be in the <strong>loss</strong>, not in separate output heads.</p>
+<p>Same dual encoder, multiple loss terms on the same embedding space:</p>
+<p>$$\text{sim}(q, d) = \mathbf{q}^T \mathbf{d} = \text{QueryEncoder}(q)^T \cdot \text{AppEncoder}(d)$$</p>
+<p>$$\mathcal{L}_{\text{click}} = \text{InfoNCE}(\text{sim}, \text{positives}=\text{clicked apps}, \text{negatives}=\text{non-clicked})$$</p>
+<p>$$\mathcal{L}_{\text{download}} = \text{InfoNCE}(\text{sim}, \text{positives}=\text{downloaded apps}, \text{negatives}=\text{non-downloaded})$$</p>
+<p>$$\mathcal{L}_{\text{relevance}} = \text{InfoNCE}(\text{sim}, \text{positives}=\text{human-relevant apps}, \text{negatives}=\text{irrelevant})$$</p>
+<p>$$\mathcal{L}<em>{\text{total}} = \alpha \cdot \mathcal{L}</em>{\text{click}} + \beta \cdot \mathcal{L}<em>{\text{download}} + \gamma \cdot \mathcal{L}</em>{\text{relevance}}$$</p>
+<p>Where $\alpha, \beta, \gamma$ are hyperparameters balancing the objectives.</p>
+<p><strong>Why this works:</strong> The embedding space learns a "blended" notion of similarity that satisfies all three objectives simultaneously. At serving time, one ANN lookup retrieves candidates that are likely to be clicked AND downloaded AND relevant.</p>
+<p><strong>Contrast with ranking multi-objective (MMOE/PLE):</strong>
+- Ranking models CAN have separate output heads (pCTR head, pCVR head, relevance head) because they score each candidate independently — no ANN constraint
+- Retrieval dual encoder CANNOT — must produce a single embedding for ANN</p>
+<h4 id="architecture-details">Architecture details:</h4>
+<pre><code>Query Encoder: BERT-base → mean pooling → 768-dim → linear projection → 256-dim
+App Encoder:   BERT-base → mean pooling → 768-dim → linear projection → 256-dim
+              (input = app_title + &quot; [SEP] &quot; + description[:128])
+</code></pre>
+<p>$$\text{sim}(q, d) = \frac{\mathbf{q}^T \mathbf{d}}{\tau}$$</p>
+<p>(dot product preferred over cosine for ANN efficiency in some systems; $\tau$ = temperature)</p>
+<h4 id="training-pipeline">Training pipeline:</h4>
+<ol>
+<li>Collect search logs → (query, impressed apps, clicked apps, downloaded apps)</li>
+<li>Build training samples: (query, positive_app, [negative_apps])</li>
+<li>Initialize encoders from pre-trained LM (BERT, sentence-transformers, E5)</li>
+<li>Fine-tune with multi-objective contrastive loss + hard negative mining</li>
+<li>Evaluate on held-out relevance judgments (Recall@K, MRR)</li>
+<li>Periodic re-training (weekly/monthly) as user behavior shifts</li>
+</ol>
+<blockquote>
+<p><strong>How to say it in interview (Dual Encoder Training):</strong></p>
+<p>"For training data, we mine positive pairs from search logs — downloads are strong positives, clicks are weak positives. For negatives, I'd use a mix: random negatives from the corpus for baseline contrast, BM25 top results that weren't clicked as medium-hard negatives, and in-batch negatives which come for free.</p>
+<p>The loss function is InfoNCE — essentially a softmax over similarities. You compute the dot product between the query embedding and all candidate embeddings, then push the positive pair's similarity up while pushing negatives down. It's the same as a multi-class classification: 'which of these N items is the true positive?'</p>
+<p>For handling different label strengths — clicks versus downloads — I'd use weighted InfoNCE: same loss formula but give download pairs a higher gradient weight, say 2x compared to clicks. You could also use a cosine MSE loss with soft labels like 1.0 for downloads, 0.7 for clicks, 0.2 for impressions without clicks — this lets the model learn graded relevance rather than binary.</p>
+<p>For multi-objective training, the key constraint is that a retrieval model can only output a single similarity score for ANN search. So we can't have separate output heads like in a ranking model. Instead, we add multiple loss terms on the same embedding space — a click loss, a download loss, and a relevance loss — weighted and summed. The embedding learns a blended representation that tries to satisfy all three objectives simultaneously."</p>
+<p><strong>How to say it (Hard Negatives):</strong></p>
+<p>"Hard negatives are samples that are NOT relevant but LOOK relevant to the model — high similarity despite being negative. They're critical because with only easy random negatives, the model quickly gets 99% accuracy and stops learning. The loss goes to zero, gradients vanish.</p>
+<p>Hard negatives force the model to learn fine-grained distinctions. For 'photo editor,' a hard negative might be 'Photo Gallery Viewer' — lexically similar but functionally different. The model has to learn that 'editor' and 'gallery' imply different purposes.</p>
+<p>I'd source them from three places: BM25 top results that weren't clicked — these are things BM25 thinks are relevant but users didn't engage with. In-batch negatives that happen to score high. And iterative model-based mining: after one round of training, use the model itself to find its own top results that are actually negative, then retrain. This is the ANCE approach — you mine negatives from the model's own confusion.</p>
+<p>Importantly, hard negative mining is a sampling strategy, not a labeling strategy. The labels don't change — positive is still clicked or downloaded, negative is still not. We're just choosing WHICH negatives to show the model during training."</p>
+</blockquote>
+<hr />
+<h3 id="q7b-standalone-relevance-model-design-and-labels">Q7b: Standalone Relevance Model — Design and Labels</h3>
+<h4 id="why-a-separate-relevance-model">Why a separate relevance model?</h4>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Multi-objective dual encoder</th>
+<th>Standalone relevance model</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Architecture</td>
+<td>One model, relevance blended into loss</td>
+<td>Separate model, runs after retrieval</td>
+</tr>
+<tr>
+<td>Model type</td>
+<td>Must be dual encoder (ANN constraint)</td>
+<td>Can be heavier: cross-encoder, GBDT</td>
+</tr>
+<tr>
+<td>Quality</td>
+<td>Relevance diluted by revenue objectives</td>
+<td>Dedicated, higher quality</td>
+</tr>
+<tr>
+<td>Serving</td>
+<td>Single ANN lookup</td>
+<td>Extra model call on ~500 candidates</td>
+</tr>
+<tr>
+<td>Use case</td>
+<td>Bake relevance into retrieval</td>
+<td>Hard filter/feature for ranking</td>
+</tr>
+</tbody>
+</table>
+<h4 id="how-to-get-relevance-labels-the-hard-problem">How to get relevance labels (the hard problem):</h4>
+<p><strong>Method 1: Human annotation (gold standard)</strong></p>
+<pre><code>Annotator task:
+  Given: query = &quot;photo editor&quot;, app = &quot;Instagram&quot;
+  Question: How relevant is this app to this query?
+  Scale: 0-4
+    4 = Perfect match (e.g., Adobe Lightroom)
+    3 = Excellent (e.g., VSCO - primarily a photo editor)
+    2 = Good (e.g., Instagram - has editing but not primary purpose)
+    1 = Fair (e.g., Camera app - related but not editor)
+    0 = Bad (e.g., Candy Crush - irrelevant)
+
+Volume needed: 50K-200K labeled pairs for a good model
+Cost: $0.10-0.50 per judgment
+</code></pre>
+<p><strong>Method 2: LLM-as-judge (scalable, 90%+ agreement with humans)</strong></p>
+<pre><code class="language-python">prompt = f&quot;&quot;&quot;Rate relevance of this app to the search query.
+Query: &quot;{query}&quot;
+App: &quot;{app_name}&quot; — {app_description}
+Scale 0-4 (4=perfect match, 0=irrelevant). Output only the number.&quot;&quot;&quot;
+
+# Run GPT-4/Claude on 1M+ pairs at ~$0.01 per judgment
+</code></pre>
+<p><strong>Method 3: Behavioral heuristics (noisy but free)</strong></p>
+<pre><code>Relevance proxy signals:
+- Query is exact/partial match of app name → high relevance
+- App category matches query intent → medium
+- Downloaded and retained 7+ days → strong relevance
+- Downloaded and uninstalled within 24h → weak relevance
+- High dwell time on app page after click → relevant
+- Quick bounce (&lt; 3s on page) → irrelevant
+</code></pre>
+<p><strong>Method 4: Distillation from heavy model</strong>
+- Train a cross-encoder on small human-labeled dataset (50K pairs)
+- Use cross-encoder to score 5M+ pairs (offline, slow but accurate)
+- Train lightweight dual encoder / classifier on these "teacher" scores</p>
+<h4 id="relevance-model-architecture-options">Relevance model architecture options:</h4>
+<pre><code>Option A: Cross-encoder (highest quality, used as filter after retrieval)
+  Input: &quot;[CLS] query [SEP] app_title app_description [SEP]&quot;
+  Output: relevance_score ∈ [0, 1]
+  Latency: ~5ms per pair × 500 candidates = 2.5s → too slow for all, use on top-100
+
+Option B: Lightweight classifier (faster, use as feature in ranker)
+  Input: pre-computed features (BM25 score, category match, embedding sim, etc.)
+  Model: 2-layer MLP or small GBDT
+  Output: relevance_score
+  Latency: ~0.1ms per candidate → feasible for 500 candidates
+</code></pre>
+<hr />
+<h3 id="q7c-hard-negative-mining-detailed-explanation">Q7c: Hard Negative Mining — Detailed Explanation</h3>
+<h4 id="what-is-a-hard-negative">What is a hard negative?</h4>
+<p><strong>Hard negative</strong> = a sample that is NOT relevant to the query but LOOKS relevant to the model (high similarity score despite being negative).</p>
+<pre><code>Easy negative:  (&quot;photo editor&quot;, &quot;Candy Crush&quot;)     → trivially different, model scores 0.1
+Hard negative:  (&quot;photo editor&quot;, &quot;Photo Gallery&quot;)    → lexically similar, model scores 0.7 but it's NOT an editor
+</code></pre>
+<h4 id="why-hard-negatives-matter">Why hard negatives matter:</h4>
+<p>With only random/easy negatives:
+- Model quickly achieves 99% accuracy (too easy)
+- Loss → 0, gradients → 0, no more learning
+- Model cannot distinguish between "photo editor" and "photo viewer" — both score high</p>
+<p>With hard negatives:
+- Model is forced to learn fine-grained distinctions
+- "photo" alone is not enough — must understand "editor" functionality vs "viewer" vs "gallery"
+- Much better retrieval quality in practice</p>
+<h4 id="how-to-find-hard-negatives-4-methods">How to find hard negatives — 4 methods:</h4>
+<p><strong>Method 1: BM25 top results not clicked (most common, free)</strong></p>
+<pre><code>Query: &quot;photo editor&quot;
+BM25 retrieves: [App_A(clicked), App_B(not clicked), App_C(not clicked), App_D(clicked)]
+
+Hard negatives for this query = {App_B, App_C}
+Label logic: BM25 thinks they're relevant (lexical match), but user didn't click → negative
+
+Note: This is noisy! App_B might be relevant but just wasn't seen (position bias).
+Mitigation: Only use apps that were in top-3 positions but not clicked.
+</code></pre>
+<p><strong>Method 2: In-batch negatives + hardest selection</strong></p>
+<p>Given a batch of $B=256$ pairs $(q_i, d_i^+)$:</p>
+<p>$$S = \mathbf{Q} \cdot \mathbf{D}^T \in \mathbb{R}^{B \times B}$$</p>
+<ul>
+<li>Diagonal $S_{ii}$ = positive pair similarities</li>
+<li>Off-diagonal $S_{ij}, j \neq i$ = in-batch negatives</li>
+</ul>
+<p>$$\text{hardest negative for } q_i = \arg\max_{j \neq i} S_{ij}$$</p>
+<p>These are apps that are someone else's positive but score high for $q_i$ — the model is most confused about them.</p>
+<p><strong>Method 3: Same-category but different function</strong></p>
+<pre><code>Query: &quot;photo editor&quot;
+Positive: Adobe Lightroom (Photo &amp; Video → editing)
+Hard negatives:
+  - Photo Gallery (Photo &amp; Video → viewing, NOT editing)
+  - Camera+ (Photo &amp; Video → capture, NOT editing)
+  - Photo Collage Maker (Photo &amp; Video → collage, not general editor)
+
+Label logic: Same category implies surface similarity, but different functionality = negative
+How to get: category metadata + functionality classification (manual or LLM-based)
+</code></pre>
+<p><strong>Method 4: Model-based iterative mining (ANCE approach)</strong></p>
+<pre><code>Round 1:
+  - Train dual encoder with random negatives
+  - Use trained model to retrieve top-100 for each training query
+  - Candidates in top-100 that are NOT positive = hard negatives for next round
+
+Round 2:
+  - Re-train with these hard negatives
+  - Model improves → old hard negatives become easy
+  - Mine new hard negatives from updated model's top-100
+
+Round 3:
+  - Repeat (usually 2-3 rounds is enough, diminishing returns after)
+</code></pre>
+<h4 id="key-insight-hard-negative-is-a-sampling-strategy-not-a-labeling-strategy">Key insight: Hard negative is a SAMPLING strategy, not a labeling strategy</h4>
+<p>You don't need new labels for hard negatives! The label logic is simple:
+- If (query, app) pair has a click/download → positive (regardless of difficulty)
+- If (query, app) pair has NO click/download → negative
+- "Hard" just means: among all negatives, we SELECT the ones the model finds confusing</p>
+<p>The "hardness" is about WHERE you sample negatives from, not about getting new labels:
+- Random sampling → easy negatives (from entire corpus)
+- BM25 top results → medium-hard negatives (lexically similar)
+- Model's own top results → hardest negatives (semantically similar to model)</p>
+<h4 id="practical-training-recipe">Practical training recipe:</h4>
+<p>For each query $q$, construct 1 positive + mixed negatives:</p>
+<table>
+<thead>
+<tr>
+<th>Negative source</th>
+<th>Count</th>
+<th>Difficulty</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Random from corpus</td>
+<td>~5</td>
+<td>Easy (baseline contrast)</td>
+</tr>
+<tr>
+<td>BM25 top results not clicked</td>
+<td>~3</td>
+<td>Medium (lexical confusion)</td>
+</tr>
+<tr>
+<td>In-batch (other queries' positives)</td>
+<td>$B-1$</td>
+<td>Variable (free)</td>
+</tr>
+<tr>
+<td>Model-mined from previous checkpoint</td>
+<td>~2</td>
+<td>Hardest (optional)</td>
+</tr>
+</tbody>
+</table>
+<p>$$\mathcal{L} = -\log \frac{\exp(\mathbf{q}^T \mathbf{d}^+ / \tau)}{\exp(\mathbf{q}^T \mathbf{d}^+ / \tau) + \sum_{i=1}^{K} \exp(\mathbf{q}^T \mathbf{d}_i^- / \tau)}, \quad \tau = 0.07$$</p>
+<hr />
+<h3 id="q7d-why-can-relevance-model-use-cross-encoder-isnt-dual-encoder-better">Q7d: Why can relevance model use cross-encoder? Isn't dual encoder better?</h3>
+<h4 id="clarification-cross-encoder-quality-dual-encoder-quality">Clarification: Cross-encoder quality &gt; Dual encoder quality</h4>
+<p><strong>Common misconception:</strong> Dual encoder is "better." In fact:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Dual Encoder</th>
+<th>Cross-Encoder</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Quality</strong></td>
+<td>Lower (no cross-attention)</td>
+<td><strong>Higher</strong> (full cross-attention)</td>
+</tr>
+<tr>
+<td><strong>Speed</strong></td>
+<td><strong>Extremely fast</strong> (ANN)</td>
+<td>Slow (per-pair inference)</td>
+</tr>
+<tr>
+<td><strong>Use case</strong></td>
+<td>Retrieval (50K candidates)</td>
+<td>Ranking/filtering (100-500 candidates)</td>
+</tr>
+</tbody>
+</table>
+<p>Dual encoder's advantage is <strong>speed</strong>, not quality. It sacrifices quality for the ability to do ANN search over 50K+ candidates.</p>
+<h4 id="why-retrieval-must-use-dual-encoder">Why retrieval MUST use dual encoder:</h4>
+<ul>
+<li>Must search 50K candidates → can't run model on each pair</li>
+<li>Must pre-compute doc embeddings offline + ANN lookup</li>
+<li>Only dual encoder allows this (independent encoding of query and doc)</li>
+</ul>
+<h4 id="why-relevance-model-can-use-cross-encoder">Why relevance model CAN use cross-encoder:</h4>
+<ul>
+<li>It runs <strong>after</strong> retrieval, candidates already reduced to ~100-500</li>
+<li>100 pairs × 5ms/pair = 500ms — expensive but feasible</li>
+<li>Since candidate count is small, we can afford a heavier, more accurate model</li>
+</ul>
+<h4 id="the-multi-stage-principle">The multi-stage principle:</h4>
+<pre><code>50K candidates → Dual encoder (fast, moderate quality)
+500 candidates → Cross-encoder relevance (slow, high quality)
+100 candidates → Ranking model (feature-rich)
+</code></pre>
+<p><strong>Each stage: fewer candidates → heavier model → higher quality.</strong></p>
+<hr />
+<h3 id="q7e-is-cross-encoder-just-pointwise-ranking">Q7e: Is cross-encoder just pointwise ranking?</h3>
+<p><strong>Yes, essentially pointwise.</strong></p>
+<p>$$f(q, d) = \text{Transformer}\left([\text{CLS}] \; q \; [\text{SEP}] \; d \; [\text{SEP}]\right) \to \text{score} \in [0, 1]$$</p>
+<ul>
+<li>Input: one (query, candidate) pair concatenated</li>
+<li>Output: single relevance score</li>
+<li>Scores each pair independently → pointwise</li>
+</ul>
+<h4 id="key-difference-from-dual-encoder">Key difference from dual encoder:</h4>
+<ul>
+<li><strong>Dual encoder</strong>: query and doc go through <strong>separate</strong> encoders, tokens never see each other, only interact via final dot product</li>
+<li><strong>Cross-encoder</strong>: query and doc tokens enter <strong>same</strong> transformer, every token attends to all other tokens (full cross-attention)</li>
+</ul>
+<p>This is why cross-encoder captures fine-grained interactions:
+- "photo editor" vs "Photo Gallery" — cross-encoder understands "editor" ≠ "gallery" via cross-attention
+- Dual encoder may encode both similarly (because "photo" dominates the embedding)</p>
+<hr />
+<h3 id="q7f-if-retrieval-already-has-multi-objective-loss-why-need-a-separate-relevance-model">Q7f: If retrieval already has multi-objective loss, why need a separate relevance model?</h3>
+<h4 id="core-reason-multi-objective-is-a-compromise-not-best-of-both">Core reason: Multi-objective is a compromise, not best-of-both</h4>
+<p>$$\mathcal{L}<em>{\text{total}} = \alpha \cdot \mathcal{L}</em>{\text{click}} + \beta \cdot \mathcal{L}<em>{\text{download}} + \gamma \cdot \mathcal{L}</em>{\text{relevance}}$$</p>
+<p><strong>One embedding space</strong> tries to satisfy three conflicting objectives:
+- A popular app (high click) may be irrelevant to the specific query
+- A highly relevant app may have low CTR (unknown app)</p>
+<p><strong>One embedding cannot perfectly satisfy all objectives.</strong> Result: each objective is diluted. Especially when click data ($\alpha$) is 100x more abundant than relevance data ($\gamma$), the relevance signal gets drowned out.</p>
+<h4 id="advantages-of-a-standalone-relevance-model">Advantages of a standalone relevance model:</h4>
+<ol>
+<li><strong>No compromise</strong> — 100% model capacity dedicated to relevance alone</li>
+<li><strong>Stronger architecture</strong> — not constrained by ANN, can use cross-encoder</li>
+<li><strong>Hard gate</strong> — set threshold: $\text{relevance} &lt; 0.3 \implies \text{filter out}$, regardless of revenue</li>
+<li><strong>Independent iteration</strong> — update retrieval and relevance models separately</li>
+</ol>
+<h4 id="how-they-complement-each-other">How they complement each other:</h4>
+<pre><code>Retrieval (dual encoder, multi-obj):
+  → Coarse filter, ensures relevant + high-revenue candidates recalled
+  → Relevance judgment is rough (one embedding for all objectives)
+
+Relevance model (standalone):
+  → Precise relevance judgment on smaller candidate set
+  → Acts as safety net against irrelevant-but-popular apps
+
+Ranking:
+  → Among &quot;confirmed relevant&quot; candidates, maximize revenue
+</code></pre>
+<p>Multi-objective retrieval ensures "don't completely miss relevant items," but its relevance is coarse. The standalone model provides fine-grained precision.</p>
+<hr />
+<h3 id="q7g-what-is-distillation-why-not-just-use-cross-encoder-directly">Q7g: What is distillation? Why not just use cross-encoder directly?</h3>
+<h4 id="problem-cross-encoder-is-too-slow-for-online-serving">Problem: Cross-encoder is too slow for online serving</h4>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Latency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>500 candidates × 5ms/pair</td>
+<td>2.5 seconds ❌</td>
+</tr>
+<tr>
+<td>100 candidates × 5ms/pair</td>
+<td>500ms (borderline)</td>
+</tr>
+<tr>
+<td>User expectation</td>
+<td>&lt; 100ms total</td>
+</tr>
+</tbody>
+</table>
+<h4 id="solution-knowledge-distillation">Solution: Knowledge Distillation</h4>
+<p>$$\text{Teacher (cross-encoder)} \xrightarrow{\text{distill}} \text{Student (lightweight model)}$$</p>
+<p><strong>Step 1:</strong> Train cross-encoder on ~50K human-labeled (query, app, relevance) pairs
+- Works with small data because pre-trained LM (BERT) already understands semantics
+- Fine-tuning just teaches it "what counts as relevant in ads context"</p>
+<p><strong>Step 2:</strong> Use cross-encoder to score millions of (query, app) pairs <strong>offline</strong>
+- No latency constraint — can run for days
+- Produces high-quality soft labels: e.g., score("photo editor", App_A) = 0.92</p>
+<p><strong>Step 3:</strong> Train student model on these soft labels
+- Student: 2-layer MLP, small dual encoder, or GBDT
+- $\mathcal{L} = \text{MSE}\left(\text{student}(q, d), \text{teacher_score}(q, d)\right)$
+- Now you have millions of high-quality labels to train with</p>
+<p><strong>Step 4:</strong> Serve student model online
+- Latency: ~0.1-0.5ms/pair → 500 × 0.1ms = 50ms ✓</p>
+<h4 id="comparison">Comparison:</h4>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Cross-encoder (teacher)</th>
+<th>Distilled student</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Quality</td>
+<td>Highest</td>
+<td>~95% of teacher</td>
+</tr>
+<tr>
+<td>Latency</td>
+<td>5-10ms/pair</td>
+<td>0.1-0.5ms/pair</td>
+</tr>
+<tr>
+<td>500 candidates</td>
+<td>2.5-5s ❌</td>
+<td>50-250ms ✓</td>
+</tr>
+<tr>
+<td>Use case</td>
+<td>Offline scoring / labeling</td>
+<td>Online serving</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="q7h-why-not-just-train-gbdt-directly-why-distill">Q7h: Why not just train GBDT directly? Why distill?</h3>
+<h4 id="the-label-qualityquantity-problem">The label quality/quantity problem</h4>
+<p><strong>Option: Train GBDT directly</strong></p>
+<table>
+<thead>
+<tr>
+<th>Label source</th>
+<th>Volume</th>
+<th>Problem</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Human annotation</td>
+<td>50K-200K</td>
+<td>Too few for GBDT to generalize well</td>
+</tr>
+<tr>
+<td>Click/download logs</td>
+<td>Millions</td>
+<td>Noisy; click ≠ relevance</td>
+</tr>
+</tbody>
+</table>
+<p>GBDT is a shallow model — it doesn't have pre-trained language understanding. It needs <strong>large amounts of clean labels</strong> to learn well.</p>
+<p><strong>Option: Distill from cross-encoder</strong></p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>What happens</th>
+<th>Volume</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>50K human labels → cross-encoder</td>
+<td>BERT already "understands" language, 50K is enough to fine-tune</td>
+<td>50K</td>
+</tr>
+<tr>
+<td>Cross-encoder → score 5M pairs</td>
+<td>High-quality soft labels generated offline</td>
+<td>5M</td>
+</tr>
+<tr>
+<td>5M soft labels → GBDT</td>
+<td>Abundant + clean training data</td>
+<td>5M</td>
+</tr>
+</tbody>
+</table>
+<h4 id="why-cross-encoder-works-with-only-50k-labels-but-gbdt-doesnt">Why cross-encoder works with only 50K labels but GBDT doesn't:</h4>
+<p><strong>Cross-encoder = BERT + fine-tuning:</strong>
+- BERT is pre-trained on billions of tokens — already knows "editor" ≠ "viewer"
+- Fine-tuning only teaches: "in ads context, what specific patterns = relevant"
+- 50K examples is plenty for this narrow fine-tuning</p>
+<p><strong>GBDT = no language prior:</strong>
+- Operates on hand-crafted features: BM25 score, category match, cosine sim, etc.
+- Has no concept of word meaning — just splits on numeric thresholds
+- 50K examples → learns shallow decision boundaries, overfits or misses edge cases
+- Needs millions of examples to cover the space of (query, app) combinations</p>
+<h4 id="cross-encoder-as-a-label-amplifier">Cross-encoder as a "label amplifier":</h4>
+<p>$$50\text{K human labels} \xrightarrow{\text{cross-encoder}} 5\text{M high-quality soft labels} \xrightarrow{\text{train}} \text{GBDT}$$</p>
+<p>The cross-encoder multiplies your expensive human labels 100x. GBDT couldn't learn from 50K, but it CAN learn from 5M.</p>
+<h4 id="when-can-you-skip-distillation-and-train-gbdt-directly">When CAN you skip distillation and train GBDT directly?</h4>
+<ul>
+<li>You have millions of clean relevance labels (e.g., massive annotation budget)</li>
+<li>Your features are already highly informative (e.g., includes a pre-computed embedding similarity from another model)</li>
+<li>Latency is not a constraint (can use cross-encoder directly)</li>
+</ul>
+<h4 id="is-dual-encoder-trainserve-inconsistent">Is dual encoder train/serve inconsistent?</h4>
+<p><strong>Not really.</strong> Both training and serving use the same operation:</p>
+<p>$$\text{score}(q, d) = \mathbf{q}^T \mathbf{d}$$</p>
+<ul>
+<li>Training: compute $\mathbf{q}^T \mathbf{d}$ directly, apply InfoNCE loss</li>
+<li>Serving: compute $\mathbf{q}^T \mathbf{d}$ via ANN (approximate, ~95-99% recall vs exact)</li>
+</ul>
+<p>ANN is not a "proxy" — it's an <strong>acceleration of exact dot product search</strong>. Like binary search is an acceleration of linear search; same answer, faster.</p>
+<p><strong>The real train/serve gap</strong> is in negative distribution:
+- Training: model sees in-batch negatives + sampled hard negatives (hundreds)
+- Serving: model must distinguish among 50K real candidates
+- Mitigation: better hard negative mining bridges this gap</p>
+<h4 id="full-system-model-design-logic">Full system model design logic:</h4>
+<pre><code>50K apps
+  │
+  ▼ Dual encoder + ANN (fast, multi-obj, moderate quality)
+500 candidates
+  │
+  ▼ Relevance model - distilled student (fast, relevance-focused, high quality)
+  │   Filter: relevance &lt; threshold → remove
+200 candidates
+  │
+  ▼ Ranking model (feature-rich, multi-obj: pCTR × pCVR × bid)
+20 candidates
+  │
+  ▼ Cross-encoder re-ranker (slowest, most accurate, only on tiny set)
+5 final ads
+</code></pre>
+<p><strong>Design principle:</strong> fewer candidates → heavier model → higher quality → more latency budget per candidate.</p>
+<blockquote>
+<p><strong>How to say it in interview (Cross-encoder vs Dual encoder, Relevance model, Distillation — complete story):</strong></p>
+<p>"A common misconception is that dual encoders are higher quality than cross-encoders — it's actually the opposite. A cross-encoder gets full cross-attention between query and document tokens, so it captures fine-grained interactions that a dual encoder misses. The dual encoder's advantage is purely speed: it lets us pre-compute document embeddings and do ANN search.</p>
+<p>So the architecture follows a principle: as we move down the funnel and candidates decrease, we use progressively heavier models. Retrieval must use a dual encoder because we're searching 50K candidates. But once we're down to 500 candidates, we CAN afford a cross-encoder — and we should, because it's more accurate.</p>
+<p>A cross-encoder is essentially pointwise scoring: concatenate query and document, pass through a transformer, get a relevance score. It's like a binary classifier for each pair.</p>
+<p>Now, why a separate relevance model even if our retrieval model already has a relevance objective? Because multi-objective training is a compromise. One embedding space trying to satisfy click, download, AND relevance objectives simultaneously — they conflict. A popular app might get high click scores but be irrelevant to the specific query. The relevance signal gets diluted, especially since click data is 100x more abundant. A standalone relevance model dedicates 100% of its capacity to one job: is this app relevant to this query? It acts as a hard quality gate.</p>
+<p>For serving this relevance model, the challenge is latency. A cross-encoder takes 5ms per pair — on 500 candidates that's 2.5 seconds, way too slow. So we use knowledge distillation: train the cross-encoder offline on 50K human-labeled pairs — BERT's pre-trained understanding makes this work with limited data. Then use it to score millions of pairs offline, generating high-quality soft labels. Finally, train a lightweight student model — a small MLP or GBDT — on those millions of soft labels. The student achieves about 95% of the teacher's quality but runs in 0.1ms per pair.</p>
+<p>Why not skip the cross-encoder and train the GBDT directly? Because GBDT has no language understanding — it operates on hand-crafted features. With only 50K human labels it overfits. But BERT already 'knows' that editor and viewer are different functions — 50K fine-tuning examples is plenty to teach it what 'relevant' means in ads context. Then it amplifies those 50K labels into 5 million high-quality training samples for the GBDT. The cross-encoder is essentially a label amplifier."</p>
+</blockquote>
+<hr />
+<h3 id="retrieval-model-training-connecting-the-dots-complete-summary">Retrieval Model Training — Connecting the Dots (Complete Summary)</h3>
+<p>Everything about training a retrieval dual encoder connects into one coherent story:</p>
+<pre><code>┌─────────────────────────────────────────────────────────────────────┐
+│ 1. TRAINING DATA &amp; ITS PROBLEMS                                      │
+│                                                                       │
+│    Sources:                                                           │
+│    • Install logs (strong positive, sparse)                           │
+│    • Click logs (weak positive, abundant, noisy)                      │
+│    • Human annotation (strong, small scale)                           │
+│    • LLM-as-judge labels (strong, scalable)                           │
+│                                                                       │
+│    Fundamental problem: all behavioral labels are BIASED              │
+│    • Position bias: clicks confounded by display position             │
+│    • Popularity bias: popular apps get clicked regardless             │
+│    • Fix: IPW (upweight low-position clicks), use installs &gt; clicks   │
+├─────────────────────────────────────────────────────────────────────┤
+│ 2. NEGATIVE SAMPLING (what to contrast against)                       │
+│                                                                       │
+│    Easy negatives: random from corpus (model learns fast, then stops) │
+│    Medium: BM25 top not clicked (lexically similar but not relevant)  │
+│    Hard: in-batch negatives (other queries' positives)                │
+│    Hardest: model-mined (ANCE — model's own top false positives)      │
+│                                                                       │
+│    Also a sampling strategy, not a labeling strategy.                 │
+│    The label is always: clicked/installed = positive, else = negative  │
+│    &quot;Hard&quot; = WHERE you sample, not WHAT the label is                   │
+├─────────────────────────────────────────────────────────────────────┤
+│ 3. LOSS FUNCTION (how to learn from the data)                         │
+│                                                                       │
+│    InfoNCE (contrastive): softmax over similarities                   │
+│    • 1 positive + K negatives → &quot;which is the real match?&quot;            │
+│    • Weighted InfoNCE: download pairs get 2x gradient weight          │
+│    • Alternative: Cosine MSE with soft labels (graded relevance)      │
+│                                                                       │
+│    Negative sampling fills the denominator of InfoNCE                 │
+│    Harder negatives → more informative gradients                      │
+├─────────────────────────────────────────────────────────────────────┤
+│ 4. MULTI-OBJECTIVE (what to optimize for)                             │
+│                                                                       │
+│    Single embedding must satisfy multiple objectives:                  │
+│    L_total = α·L_click + β·L_download + γ·L_relevance                │
+│                                                                       │
+│    Problem: objectives conflict. Revenue vs relevance.                 │
+│    One embedding = compromise. Relevance gets diluted.                │
+├─────────────────────────────────────────────────────────────────────┤
+│ 5. STANDALONE RELEVANCE MODEL (dedicated quality gate)                │
+│                                                                       │
+│    Why: multi-obj retrieval can't do relevance perfectly              │
+│    Architecture: cross-encoder (higher quality, runs on fewer cands)  │
+│    Labels: human annotation (50K) or LLM-as-judge                     │
+│    Serving: too slow directly → distill to lightweight student        │
+├─────────────────────────────────────────────────────────────────────┤
+│ 6. DISTILLATION (making it servable)                                  │
+│                                                                       │
+│    Teacher: cross-encoder trained on 50K human labels (BERT handles   │
+│             small data via pre-training)                               │
+│    → Score 5M pairs offline → high-quality soft labels                │
+│    Student: GBDT/MLP trained on 5M soft labels → serves in 0.1ms     │
+│                                                                       │
+│    Cross-encoder = &quot;label amplifier&quot; (50K → 5M clean labels)          │
+└─────────────────────────────────────────────────────────────────────┘
+</code></pre>
+<p><strong>How each piece answers "why do we need the next one?":</strong></p>
+<ol>
+<li><strong>Data has bias</strong> → need IPW / careful negative selection</li>
+<li><strong>Easy negatives aren't enough</strong> → need hard negative mining</li>
+<li><strong>Multiple objectives conflict</strong> → need standalone relevance model</li>
+<li><strong>Cross-encoder too slow</strong> → need distillation</li>
+<li><strong>GBDT can't learn from 50K labels</strong> → need cross-encoder as label amplifier</li>
+</ol>
+<blockquote>
+<p><strong>How to say it in interview (complete retrieval training story, 2 minutes):</strong></p>
+<p>"Let me walk through how I'd train a retrieval dual encoder end-to-end.</p>
+<p>First, training data. Positive labels come from search logs — installs are strong positives but sparse, clicks are weaker but abundant. The key challenge is that this data has position bias: apps in top positions get clicked more just because they're seen, not because they're more relevant. I'd address this with inverse propensity weighting — upweighting clicks from lower positions since those indicate stronger user intent.</p>
+<p>For negatives, I'd use a mix: random corpus samples as a baseline, BM25 top results that weren't clicked as medium-hard negatives, in-batch negatives for free, and potentially model-mined hard negatives from a previous training checkpoint. Hard negatives are critical — without them the model converges too fast on easy distinctions and can't differentiate 'photo editor' from 'photo gallery.'</p>
+<p>The loss is InfoNCE — a softmax over similarities. One positive plus K negatives, maximize the probability of selecting the correct positive. I'd weight it so download pairs contribute 2x the gradient compared to click pairs.</p>
+<p>For multiple objectives — click, download, and relevance — I'd add them as separate loss terms on the same embedding space. But this is inherently a compromise: one embedding trying to satisfy conflicting goals means each gets diluted.</p>
+<p>That's why I'd add a standalone relevance model downstream — a cross-encoder that dedicates 100% capacity to relevance alone, acting as a hard quality gate. For serving latency, I'd distill it: train the cross-encoder on 50K human labels, use it to score millions of pairs offline, then train a lightweight student on those soft labels. The cross-encoder works as a label amplifier — BERT's pre-trained knowledge makes 50K labels enough, then it generates millions of clean training samples for the fast student model."</p>
+</blockquote>
+<hr />
+<h3 id="q8-ann-approximate-nearest-neighbor-why-fast-how-it-works">Q8: ANN (Approximate Nearest Neighbor) — Why Fast, How It Works</h3>
+<h4 id="why-exact-knn-is-slow">Why exact KNN is slow:</h4>
+<p>$$\text{Exact KNN}: O(N \times d) \text{ distance computations per query}$$</p>
+<ul>
+<li>50K docs × 256 dims = 12.8M multiplications per query</li>
+<li>For millions of docs → completely infeasible at serving latency</li>
+</ul>
+<h4 id="core-idea-of-ann">Core idea of ANN:</h4>
+<p>Don't look at ALL candidates. Only examine a small subset that's likely to contain the true nearest neighbors. Trade a tiny recall loss (~1-5%) for orders-of-magnitude speedup.</p>
+<hr />
+<h4 id="method-1-ivf-inverted-file-index-cluster-based">Method 1: IVF (Inverted File Index) — Cluster-based</h4>
+<p><strong>Offline — Build Index:</strong></p>
+<ol>
+<li>K-means cluster all $N$ doc embeddings into $C$ clusters (e.g., $C=1000$)</li>
+<li>Each cluster has a <strong>centroid</strong> (the "mother node")</li>
+<li>Record which docs belong to each cluster</li>
+</ol>
+<pre><code>Cluster 0 (centroid_0): [doc_23, doc_156, doc_892, ...]
+Cluster 1 (centroid_1): [doc_7, doc_44, doc_501, ...]
+...
+Cluster 999 (centroid_999): [doc_12, doc_88, ...]
+</code></pre>
+<p><strong>Online — Query:</strong></p>
+<pre><code>Step 1: Compare query to all C=1000 centroids
+        → Find nprobe=10 nearest clusters
+        Cost: O(C × d) = 1000 × 256 = fast!
+
+Step 2: Only search docs INSIDE those nprobe clusters
+        Each cluster has ~N/C = 50000/1000 = 50 docs
+        Search volume: nprobe × (N/C) = 10 × 50 = 500 distance computations
+
+Step 3: Return top-K from those 500 candidates
+</code></pre>
+<p><strong>Speedup:</strong> Was 50,000 distance computations → now 1000 (centroids) + 500 (within clusters) = 1,500. ~33x faster.</p>
+<p><strong>Key parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>What it controls</th>
+<th>Trade-off</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>$C$ (nlist)</td>
+<td>Number of clusters</td>
+<td>More clusters → faster search, but may miss boundary items</td>
+</tr>
+<tr>
+<td>$\text{nprobe}$</td>
+<td>How many clusters to search</td>
+<td>Higher → better recall, slower</td>
+</tr>
+</tbody>
+</table>
+<p>$$\text{Recall} \uparrow \text{ as nprobe} \uparrow, \quad \text{Latency} \uparrow \text{ as nprobe} \uparrow$$</p>
+<hr />
+<h4 id="method-2-hnsw-hierarchical-navigable-small-world-graph-based">Method 2: HNSW (Hierarchical Navigable Small World) — Graph-based</h4>
+<p>Completely different approach: build a <strong>multi-layer graph</strong> (like a skip list in vector space).</p>
+<p><strong>Offline — Build Graph:</strong></p>
+<p>Each doc embedding = a node in the graph. Each node connects to $M$ nearest neighbors. Multiple layers with decreasing density:</p>
+<pre><code>Layer 3 (sparsest): Few nodes, long-range connections
+   [node_A] ——————————— [node_B] ——————————— [node_C]
+
+Layer 2: More nodes, medium-range connections
+   [A] ——— [D] ——— [B] ——— [E] ——— [C]
+
+Layer 1: Even more nodes, short-range connections
+   [A]-[F]-[D]-[G]-[B]-[H]-[E]-[I]-[C]
+
+Layer 0 (densest): ALL nodes present, each connected to M nearest neighbors
+   All 50,000 nodes, each with M=32 edges to nearest neighbors
+</code></pre>
+<p><strong>Online — Greedy Graph Traversal:</strong></p>
+<pre><code>Step 1: Start at entry point on Layer 3 (sparsest)
+        Greedily jump to whichever neighbor is closest to query
+        Until no neighbor is closer (local minimum on this layer)
+
+Step 2: Drop to Layer 2, continue greedy search from that position
+        Finds a more precise neighborhood
+
+Step 3: Drop to Layer 1 → continue
+
+Step 4: On Layer 0, do fine-grained search
+        Maintain a priority queue of top-K candidates
+        Explore neighbors-of-neighbors until convergence
+</code></pre>
+<p><strong>Analogy — finding a restaurant on a map:</strong>
+- Layer 3: Which city? (big jumps)
+- Layer 2: Which district? (medium jumps)
+- Layer 1: Which street? (small jumps)
+- Layer 0: Exact address (fine search)</p>
+<p><strong>Complexity:</strong></p>
+<p>$$\text{HNSW search} \approx O(\log N \times M \times d)$$</p>
+<p>For $N=50,000$: $\log N \approx 17$, so ~17 × 32 × 256 ≈ 139K operations vs 12.8M for exact. ~100x faster.</p>
+<p><strong>Key parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>What it controls</th>
+<th>Trade-off</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>$M$</td>
+<td>Neighbors per node</td>
+<td>Higher → better recall, more memory</td>
+</tr>
+<tr>
+<td>$\text{ef_construction}$</td>
+<td>Beam width when building graph</td>
+<td>Higher → better graph quality, slower build</td>
+</tr>
+<tr>
+<td>$\text{ef_search}$</td>
+<td>Beam width at query time</td>
+<td>Higher → better recall, slower query</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h4 id="method-3-ivf-pq-cluster-compression">Method 3: IVF-PQ (Cluster + Compression)</h4>
+<p>When $N$ is very large (millions+), storing all full vectors in memory is expensive. <strong>Product Quantization</strong> compresses each vector:</p>
+<p>$$\mathbf{d} \in \mathbb{R}^{256} \to [c_1, c_2, ..., c_8], \quad c_i \in {0, ..., 255}$$</p>
+<p>Split 256-dim vector into 8 sub-vectors of 32 dims each. Quantize each sub-vector to its nearest centroid (from a 256-entry codebook).</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Raw vector</th>
+<th>PQ-compressed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Storage</td>
+<td>256 × 4 bytes = 1024 bytes</td>
+<td>8 bytes (one uint8 per segment)</td>
+</tr>
+<tr>
+<td>Compression</td>
+<td>1x</td>
+<td><strong>128x</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Distance computation uses lookup tables (pre-computed partial distances) → still fast.</p>
+<hr />
+<h4 id="ivf-vs-hnsw-comparison">IVF vs HNSW Comparison</h4>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>IVF</th>
+<th>HNSW</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Idea</strong></td>
+<td>Cluster vectors, only search nearby clusters</td>
+<td>Navigate multi-layer graph greedily</td>
+</tr>
+<tr>
+<td><strong>Build</strong></td>
+<td>K-means clustering</td>
+<td>Insert nodes one by one, connect edges</td>
+</tr>
+<tr>
+<td><strong>Memory</strong></td>
+<td>Low (vectors + cluster IDs)</td>
+<td>High (vectors + full graph structure)</td>
+</tr>
+<tr>
+<td><strong>Query speed</strong></td>
+<td>Fast</td>
+<td>Faster (especially at high recall)</td>
+</tr>
+<tr>
+<td><strong>Recall/speed</strong></td>
+<td>Good</td>
+<td>Best</td>
+</tr>
+<tr>
+<td><strong>Parameters</strong></td>
+<td>nlist, nprobe</td>
+<td>M, ef_search</td>
+</tr>
+<tr>
+<td><strong>Best for</strong></td>
+<td>Ultra-large scale (billions)</td>
+<td>Medium-large scale (millions)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h4 id="faiss-code-examples-with-parameters-explained">FAISS Code Examples with Parameters Explained</h4>
+<pre><code class="language-python">import faiss
+
+d = 256  # embedding dimension
+
+# === Option 1: HNSW (best recall/speed for &lt;10M items) ===
+index = faiss.IndexHNSWFlat(d, M=32)
+# M=32: each node connects to 32 neighbors
+# Larger M → higher recall, more memory (~50K × 32 × 4 bytes for edges)
+
+index.hnsw.efSearch = 64  # beam width at query time
+# Larger ef → higher recall, slower
+# Typical: ef=64 gives ~99% recall, ef=128 gives ~99.5%
+
+index.add(app_embeddings)  # shape: (50000, 256)
+
+# Query
+distances, ids = index.search(query_emb, k=500)
+
+
+# === Option 2: IVF-Flat (cluster-based, exact within clusters) ===
+nlist = 1000  # number of clusters
+quantizer = faiss.IndexFlatL2(d)  # used to find nearest clusters
+index = faiss.IndexIVFFlat(quantizer, d, nlist)
+
+index.train(app_embeddings)  # train K-means to find centroids
+index.add(app_embeddings)
+
+index.nprobe = 10  # search 10 nearest clusters at query time
+# nprobe=1: fastest, ~60% recall
+# nprobe=10: good balance, ~95% recall
+# nprobe=100: near-exact, ~99.5% recall, slower
+
+distances, ids = index.search(query_emb, k=500)
+
+
+# === Option 3: IVF-PQ (cluster + compression, for large scale) ===
+index = faiss.IndexIVFPQ(quantizer, d, nlist=1000, m=8, nbits=8)
+# m=8: split vector into 8 sub-vectors
+# nbits=8: 2^8=256 centroids per sub-vector
+# Memory per vector: 8 bytes instead of 1024 bytes
+
+index.train(app_embeddings)
+index.add(app_embeddings)
+index.nprobe = 20  # may need higher nprobe to compensate for PQ approximation
+</code></pre>
+<hr />
+<h4 id="industrial-workflow">Industrial workflow:</h4>
+<pre><code>Offline:
+  1. Compute all app embeddings using app encoder
+  2. Build ANN index (FAISS HNSW for &lt;10M, IVF-PQ for &gt;10M)
+  3. Deploy index to serving infra (replicated for availability)
+  4. Periodically rebuild as new apps are added
+
+Online (per query):
+  1. Encode query → 256-dim embedding (~5ms on GPU, ~20ms on CPU)
+  2. ANN search → top-K candidate IDs (~2-5ms)
+  3. Fetch candidate metadata → pass to ranker
+</code></pre>
+<hr />
+<blockquote>
+<p><strong>How to say it in interview (ANN — full version):</strong></p>
+<p>"Exact nearest neighbor search is O(N times d) — you compute the distance between the query embedding and every document embedding. For 50K items with 256 dimensions, that's about 13 million multiplications per query. It's feasible at 50K, but not at millions.</p>
+<p>ANN avoids exhaustive search. There are two main approaches. The first is IVF — Inverted File Index. You offline cluster all document embeddings into, say, 1000 clusters using K-means. At query time, you first find the 10 nearest cluster centroids — that's 1000 distance computations instead of 50,000. Then you only search documents within those 10 clusters. If each cluster has about 50 documents, you're searching 500 documents total instead of 50,000. Roughly 33x speedup with maybe 95% recall.</p>
+<p>The second approach is HNSW — Hierarchical Navigable Small World graphs. You build a multi-layer graph where each node is a document and each node connects to its M nearest neighbors. Top layers are sparse with long-range connections, bottom layers are dense with local connections. At query time, you start at the top layer and greedily hop to whichever neighbor is closest to your query. Then you drop to the next layer and repeat. It's like a skip list but in vector space — you do big jumps first to get to the right neighborhood, then fine-grained search at the bottom. This gives O(log N) search complexity instead of O(N).</p>
+<p>For our scale of 50K-10M items, HNSW typically gives the best recall-speed tradeoff. For billions-scale, IVF with Product Quantization compresses each vector from 1024 bytes to 8 bytes — a 128x memory reduction — which makes it feasible to fit everything in RAM."</p>
+<p><strong>How to say it (30-second version):</strong></p>
+<p>"ANN avoids exhaustive search via two main approaches. IVF clusters vectors offline and only searches nearby clusters at query time — reducing search space from N to nprobe × (N/nlist). HNSW builds a multi-layer navigable graph where you greedily traverse from coarse to fine layers, like a skip list in vector space. Both trade ~1-5% recall for 10-100x speedup. HNSW gives the best recall-speed tradeoff for moderate scale (up to ~10M); IVF-PQ is better for billions-scale with memory constraints."</p>
+</blockquote>
+<hr />
+<h3 id="q8b-multi-channel-retrieval-strategies-beyond-bm25-semantic">Q8b: Multi-Channel Retrieval — Strategies Beyond BM25 + Semantic</h3>
+<h4 id="all-retrieval-channels-in-a-production-ads-system">All retrieval channels in a production ads system:</h4>
+<table>
+<thead>
+<tr>
+<th>Channel</th>
+<th>Method</th>
+<th>Strength</th>
+<th>Covers what</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Lexical</strong></td>
+<td>BM25 / inverted index</td>
+<td>Exact term matching, no training</td>
+<td>Query ↔ app name exact match</td>
+</tr>
+<tr>
+<td><strong>Semantic</strong></td>
+<td>Dual encoder + ANN</td>
+<td>Understands synonyms/paraphrases</td>
+<td>"photo editor" → "image retouching tool"</td>
+</tr>
+<tr>
+<td><strong>Offline pre-computed</strong></td>
+<td>Query→app lookup table</td>
+<td>Zero latency, can use heavy models</td>
+<td>High-frequency queries' known-best results</td>
+</tr>
+<tr>
+<td><strong>Graph-based</strong></td>
+<td>Co-click / co-install graph</td>
+<td>Captures behavioral patterns</td>
+<td>"Users who installed A also installed B"</td>
+</tr>
+<tr>
+<td><strong>Rule-based</strong></td>
+<td>Exact name match, category filter</td>
+<td>100% precision for navigational queries</td>
+<td>"Instagram" → return Instagram directly</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h4 id="offline-pre-computed-retrieval-what-how-why">Offline Pre-computed Retrieval — What, How, Why</h4>
+<h4 id="what-is-it">What is it?</h4>
+<p>Pre-compute "query X → candidate apps" mapping <strong>offline</strong>, store as a lookup table. At serving time: query comes in → table lookup → 0ms retrieval latency.</p>
+<pre><code>Offline lookup table:
+  &quot;photo editor&quot;     → [Lightroom, VSCO, Snapseed, Pixlr, ...]
+  &quot;video editor&quot;     → [CapCut, iMovie, InShot, ...]
+  &quot;fitness tracker&quot;  → [Nike Run, Strava, Fitbit, ...]
+  ...
+</code></pre>
+<h4 id="how-to-build-the-offline-dataset">How to build the offline dataset:</h4>
+<p><strong>Method 1: From historical engagement (click/download logs)</strong></p>
+<pre><code>Step 1: Aggregate (query, app, engagement_count) from search logs
+Step 2: For each query, rank apps by engagement, take top-K
+Step 3: Store as lookup table, refresh daily/weekly
+
+Example:
+  &quot;photo editor&quot; → apps clicked in past 30 days:
+    Lightroom (50,000 clicks)
+    VSCO (35,000 clicks)
+    Snapseed (28,000 clicks)
+</code></pre>
+<p><strong>Method 2: Using heavy model scoring offline</strong></p>
+<pre><code>Step 1: Identify high-frequency queries (top-10K queries ≈ 80% traffic)
+Step 2: For each query, run cross-encoder against ALL 50K apps
+        Cost: 50K × 5ms = 250s per query (offline, acceptable)
+        10K queries × 250s = ~29 days → use GPU parallelism → feasible
+Step 3: Store top-500 per query in table
+
+Benefit: Cross-encoder quality at zero serving latency
+</code></pre>
+<p><strong>Method 3: Co-occurrence graph expansion</strong></p>
+<pre><code>Step 1: Build app-app co-install graph
+        Edge(A, B) weighted by: #users who installed both A and B
+
+Step 2: For each query, identify &quot;seed apps&quot; (known relevant from logs)
+Step 3: From seeds, expand via graph neighbors (1-2 hop random walk)
+Step 4: Expanded apps become candidates
+
+Example:
+  &quot;photo editor&quot; → seed: Lightroom
+  Lightroom co-install neighbors: VSCO, Darkroom, Affinity Photo
+  → These become candidates (even if name doesn't contain &quot;photo editor&quot;)
+</code></pre>
+<p><strong>Method 4: Query clustering + sharing</strong></p>
+<pre><code>Step 1: Cluster similar queries by embedding similarity
+        Cluster: {&quot;photo editor&quot;, &quot;image editor&quot;, &quot;pic editing app&quot;, &quot;edit photos&quot;}
+Step 2: Merge engagement data across all queries in same cluster  
+Step 3: Share candidate list for all queries in cluster
+
+Benefit: Solves data sparsity for low-frequency queries
+</code></pre>
+<h4 id="advantages-of-offline-retrieval">Advantages of offline retrieval:</h4>
+<table>
+<thead>
+<tr>
+<th>Advantage</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Zero latency</strong></td>
+<td>Pure table lookup, no real-time inference</td>
+</tr>
+<tr>
+<td><strong>Can use heaviest models</strong></td>
+<td>Offline → no latency budget → cross-encoder, LLM, anything</td>
+</tr>
+<tr>
+<td><strong>Encodes collective behavior</strong></td>
+<td>Millions of users' engagement distilled into one table</td>
+</tr>
+<tr>
+<td><strong>Stability</strong></td>
+<td>Not affected by model serving failures</td>
+</tr>
+<tr>
+<td><strong>Known-good patterns</strong></td>
+<td>High-freq query results validated by millions of impressions</td>
+</tr>
+</tbody>
+</table>
+<h4 id="disadvantages">Disadvantages:</h4>
+<table>
+<thead>
+<tr>
+<th>Disadvantage</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Cold start</strong></td>
+<td>New queries / new apps have no history</td>
+</tr>
+<tr>
+<td><strong>Staleness</strong></td>
+<td>Table can be outdated (app removed, trends shifted)</td>
+</tr>
+<tr>
+<td><strong>Coverage</strong></td>
+<td>Only covers high-frequency queries (long-tail has no data)</td>
+</tr>
+<tr>
+<td><strong>No exploration</strong></td>
+<td>Always recommends established apps, new apps get no chance</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Therefore:</strong> Offline retrieval is a <strong>complement</strong>, not a replacement. It handles the head (high-freq queries) while BM25/semantic handle the tail.</p>
+<hr />
+<h4 id="how-to-merge-candidates-from-multiple-channels">How to Merge Candidates from Multiple Channels?</h4>
+<h4 id="step-1-union-de-duplicate">Step 1: Union (de-duplicate)</h4>
+<pre><code>BM25 returns:           {A, B, C, D, E}        (500 candidates)
+Semantic (ANN) returns: {A, C, F, G, H}        (500 candidates)
+Offline lookup returns: {A, B, F, I, J}        (200 candidates)
+Graph-based returns:    {B, D, G, K, L}        (100 candidates)
+
+Union = {A, B, C, D, E, F, G, H, I, J, K, L}  (de-duplicated, ~1200 unique)
+</code></pre>
+<h4 id="step-2-fusion-selection-3-approaches">Step 2: Fusion / Selection — 3 approaches:</h4>
+<p><strong>Approach A: Pass directly to Ranking model (most common)</strong></p>
+<pre><code>All 1200 candidates → Ranking model scores each → Top-K
+</code></pre>
+<p>The ranking model's <strong>input features</strong> include channel signals:
+- <code>from_bm25 = 1/0</code>, <code>bm25_score = 0.85</code>
+- <code>from_semantic = 1/0</code>, <code>semantic_score = 0.72</code>
+- <code>from_offline = 1/0</code>, <code>offline_rank = 3</code>
+- <code>num_channels_retrieved_from = 3</code> (strong signal: multi-channel agreement)</p>
+<p>A candidate retrieved by multiple channels → likely truly relevant (implicit fusion via features).</p>
+<p><strong>Approach B: Reciprocal Rank Fusion (RRF) — lightweight fusion before ranking</strong></p>
+<p>$$\text{RRF}(d) = \sum_{c \in \text{channels}} \frac{1}{k + \text{rank}_c(d)}$$</p>
+<p>Where $k = 60$ (constant), $\text{rank}_c(d)$ = rank of doc $d$ in channel $c$ (0 if not retrieved).</p>
+<p>Example:
+- App A: rank 1 in BM25, rank 3 in semantic, rank 5 in offline</p>
+<p>$$\text{RRF}(A) = \frac{1}{60+1} + \frac{1}{60+3} + \frac{1}{60+5} = 0.0164 + 0.0159 + 0.0154 = 0.0477$$</p>
+<ul>
+<li>App K: rank 2 in graph-based only</li>
+</ul>
+<p>$$\text{RRF}(K) = \frac{1}{60+2} = 0.0161$$</p>
+<p>App A scores much higher because it appears in 3 channels → more confident.</p>
+<p><strong>Why RRF works well:</strong>
+- No need to normalize different score ranges (BM25 scores vs cosine scores vs ranks)
+- Only uses rank → robust to score scale differences
+- Simple, no training needed
+- Industry standard (Elasticsearch uses it for hybrid search)</p>
+<p><strong>Approach C: Pre-ranking model (lightweight learned fusion)</strong></p>
+<pre><code>Union (~1200 candidates)
+    ↓
+Pre-ranker: 2-layer MLP or lightweight model
+  Input features: [bm25_score, semantic_score, offline_rank, channel_count, ...]
+  Output: pre_rank_score
+  Latency: ~0.05ms per candidate → 1200 × 0.05ms = 60ms
+    ↓
+Top-500 → pass to heavy ranking model
+</code></pre>
+<h4 id="where-does-the-relevance-model-fit">Where does the relevance model fit?</h4>
+<p><strong>Relevance model ≠ fusion mechanism.</strong> It's a separate quality gate:</p>
+<pre><code>Union (1200) → Fusion/Pre-ranking (500) → Relevance filter → Ranking → Final
+                                               ↑
+                                    Here: &quot;Is this candidate actually relevant
+                                    to the query, regardless of which channel
+                                    it came from?&quot;
+
+                                    If relevance &lt; threshold → discard
+                                    Even if revenue score is high
+</code></pre>
+<p>The relevance model doesn't care about "which channel produced this candidate." It answers one question: <strong>"Given this (query, app) pair, is the app relevant to the query?"</strong></p>
+<hr />
+<h4 id="complete-multi-channel-pipeline">Complete Multi-Channel Pipeline</h4>
+<pre><code>User Query: &quot;photo editor&quot;
+        │
+        ├─→ BM25 (inverted index)               → 500 candidates
+        ├─→ Semantic (dual encoder + ANN)        → 500 candidates
+        ├─→ Offline lookup (query→app table)     → 200 candidates
+        ├─→ Graph-based (co-install expansion)   → 100 candidates
+        ├─→ Rule-based (exact name match)        → 5 candidates
+        │
+        ▼
+   Union + De-duplicate → ~1200 unique candidates
+        │
+        ▼
+   Score Fusion (RRF) or Pre-ranking → 500 candidates
+        │
+        ▼
+   Relevance Model: filter relevance &lt; 0.3 → 300 candidates
+        │
+        ▼
+   Ranking Model (heavy: pCTR × pCVR × bid × relevance) → 20 candidates
+        │
+        ▼
+   Business Rules (diversity, budget pacing, freq cap) → 5 final ads shown
+</code></pre>
+<blockquote>
+<p><strong>How to say it in interview (Multi-channel retrieval + fusion):</strong></p>
+<p>"In production, I wouldn't rely on just one retrieval path. I'd run multiple channels in parallel: BM25 for exact lexical matching, a dual encoder with ANN for semantic matching, an offline pre-computed lookup table for high-frequency queries, and potentially a graph-based channel using co-install signals.</p>
+<p>Each channel has different strengths. BM25 handles exact keyword matches perfectly. Semantic retrieval catches synonyms and paraphrases. The offline table can use arbitrarily heavy models like cross-encoders because it's pre-computed — zero serving latency. The graph channel surfaces apps based on behavioral patterns like co-installation.</p>
+<p>For the offline table specifically, I'd build it by either aggregating historical engagement data — which query led to which downloads — or by running a cross-encoder offline against all apps for the top 10K highest-frequency queries. Those queries cover maybe 80% of traffic, and the cross-encoder gives the highest quality results with no latency constraint.</p>
+<p>To merge results from all channels, I'd use Reciprocal Rank Fusion — RRF. It sums 1 over k plus rank for each channel where the candidate appears. The beauty of RRF is it doesn't need score normalization across channels — it only uses ranks, so you can combine BM25 scores with cosine similarities without calibration. A candidate that appears in multiple channels gets a higher fusion score, which is a strong relevance signal.</p>
+<p>After fusion, the relevance model acts as a quality gate — filtering out anything below a relevance threshold regardless of which channel produced it. Then the ranking model maximizes revenue within the 'confirmed relevant' set."</p>
+</blockquote>
+<hr />
+<h3 id="q9-cold-start-problem-new-app-with-no-behavioral-data">Q9: Cold-start problem — new app with no behavioral data</h3>
+<ol>
+<li><strong>Content-based embedding</strong> — encode app title + description + category via the app encoder (it generalizes even without click history since it's trained on text)</li>
+<li><strong>Lexical fallback</strong> — BM25 still works for new apps as long as metadata is indexed</li>
+<li><strong>Exploration budget</strong> — allocate some impression share to new apps (Thompson sampling or epsilon-greedy)</li>
+<li><strong>Transfer from similar apps</strong> — find nearest neighbors by content embedding, use their behavioral statistics as prior</li>
+<li><strong>Feature-based warm-up</strong> — use developer reputation, category average CTR, app quality signals as priors in ranker</li>
+</ol>
+<blockquote>
+<p><strong>How to say it in interview:</strong></p>
+<p>"For cold-start apps with no behavioral data, the dual encoder actually handles this reasonably well because it's trained on text — a new app's title and description can still produce a meaningful embedding even without click history. BM25 also works immediately since it only needs the app's text to be indexed. For exploration, I'd allocate a small impression budget to new apps — maybe using Thompson sampling to balance exploration and exploitation. And we can borrow behavioral priors from similar existing apps based on embedding proximity or category."</p>
+</blockquote>
+<hr />
+<h3 id="q10-query-understanding-from-basic-to-llm-based-personalization">Q10: Query Understanding — From Basic to LLM-based Personalization</h3>
+<h4 id="traditional-query-understanding-components">Traditional Query Understanding Components</h4>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Method</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Spell correction</strong></td>
+<td>Edit distance + language model</td>
+<td>"phot editor" → "photo editor"</td>
+</tr>
+<tr>
+<td><strong>Tokenization</strong></td>
+<td>WordPiece / custom tokenizer</td>
+<td>"photo-editor" → ["photo", "editor"]</td>
+</tr>
+<tr>
+<td><strong>Query expansion</strong></td>
+<td>Embedding similarity / click graph</td>
+<td>"photo editor" + "image editor" + "picture app"</td>
+</tr>
+<tr>
+<td><strong>Intent detection</strong></td>
+<td>Classifier (navigational vs exploratory)</td>
+<td>"Instagram" = navigational; "photo editor" = exploratory</td>
+</tr>
+<tr>
+<td><strong>Query rewriting</strong></td>
+<td>Seq2seq / LLM</td>
+<td>"best free photo app" → "photo editor free"</td>
+</tr>
+<tr>
+<td><strong>Entity recognition</strong></td>
+<td>NER model</td>
+<td>"Adobe Photoshop" → app_name entity</td>
+</tr>
+</tbody>
+</table>
+<h4 id="advanced-llm-based-customer-journey-understanding-sourcing-orchestration">Advanced: LLM-based Customer Journey Understanding + Sourcing Orchestration</h4>
+<p>Beyond traditional QU, a more advanced approach uses LLMs to understand the customer's <strong>journey and intent in real-time</strong>, then dynamically orchestrate sourcing strategies.</p>
+<p><strong>Architecture:</strong></p>
+<pre><code>User's raw signal (query, context, session history)
+        │
+        ▼
+┌────────────────────────────────────────────────────┐
+│  LLM-based Journey Understanding                    │
+│                                                     │
+│  Input: query + session context + user segment      │
+│  Output:                                            │
+│    - Reformulated/enriched query                    │
+│    - Inferred customer intent &amp; journey stage       │
+│    - Sourcing strategy selection                    │
+│      (which retrieval channels to invoke,           │
+│       how to weight them, what constraints to apply)│
+└────────────────────┬───────────────────────────────┘
+                     │
+                     ▼
+┌────────────────────────────────────────────────────┐
+│  Sourcing Orchestrator                              │
+│                                                     │
+│  Based on LLM output:                               │
+│  - Route to specific retrieval channels             │
+│  - Adjust channel weights in fusion                 │
+│  - Set relevance thresholds per intent              │
+│  - Select downstream ranking strategy               │
+└────────────────────┬───────────────────────────────┘
+                     │
+                     ▼
+           Multi-channel Retrieval (BM25, semantic, offline, graph...)
+</code></pre>
+<p><strong>Example scenarios:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Journey Stage</th>
+<th>LLM Understanding</th>
+<th>Sourcing Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Early exploration</td>
+<td>User just browsing "photo apps" broadly</td>
+<td>Emphasize diversity, broader semantic retrieval, lower bid threshold</td>
+</tr>
+<tr>
+<td>Comparison shopping</td>
+<td>User searched "VSCO vs Lightroom"</td>
+<td>Return both + similar competitors, weight exact match high</td>
+</tr>
+<tr>
+<td>Ready to install</td>
+<td>User searched "download Lightroom"</td>
+<td>Navigational intent → exact match shortcut, skip broad retrieval</td>
+</tr>
+<tr>
+<td>Re-engagement</td>
+<td>Returning user, previously installed similar app</td>
+<td>Weight graph-based retrieval (co-install), personalized offline table</td>
+</tr>
+</tbody>
+</table>
+<p><strong>This IS query understanding</strong> — it's the most advanced form of it. Traditional QU components (spell correction, expansion, intent detection) are sub-modules within this broader system. LLM-based journey understanding subsumes and extends all of them:</p>
+<pre><code>Traditional QU:
+  query → spell_correct → expand → detect_intent → fixed retrieval pipeline
+
+LLM-based Journey QU:
+  query + context → LLM understands full customer need →
+    → dynamically rewrites query (replaces traditional expansion/rewriting)
+    → classifies intent (replaces traditional intent classifier)
+    → ALSO orchestrates which sourcing strategies to invoke
+    → ALSO sets downstream parameters (thresholds, weights, diversity)
+</code></pre>
+<p><strong>Key difference from traditional QU:</strong>
+- Traditional QU: transforms the query text, then passes to a fixed retrieval pipeline
+- LLM journey QU: understands the user's NEED, then orchestrates the entire sourcing strategy dynamically — it controls not just WHAT to search for, but HOW to search</p>
+<blockquote>
+<p><strong>How to say it in interview:</strong></p>
+<p>"Query understanding sits between the user and retrieval. At the basic level, it handles spell correction, intent detection, and query expansion. But in my recent work, I took this further with an LLM-based approach to understand the customer's journey in real-time.</p>
+<p>The idea is: instead of just fixing typos and expanding terms, we use an LLM to infer the user's actual need and journey stage from the query plus session context. Then based on that understanding, we don't just rewrite the query — we dynamically orchestrate the downstream sourcing strategy. For example, if the LLM detects the user is in early exploration mode, we emphasize diversity and broader semantic retrieval. If they're in comparison mode, we weight exact matches higher and surface competitors. If it's a navigational query, we shortcut directly to exact matching.</p>
+<p>This is fundamentally still query understanding — it's just operating at a higher level. Traditional QU transforms the query text. LLM-based journey understanding transforms the entire sourcing strategy based on understanding the user's intent. The LLM subsumes the traditional components — it does expansion, rewriting, and intent detection — but then ALSO controls which retrieval channels to invoke and how to weight them. So it's query understanding that extends into sourcing orchestration."</p>
+</blockquote>
+<hr />
+<h3 id="q11-offline-vs-online-evaluation-metrics">Q11: Offline vs Online evaluation metrics</h3>
+<h4 id="offline-metrics-before-ab-test">Offline metrics (before A/B test):</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Formula</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Recall@K</td>
+<td>relevant∩retrieved / total_relevant</td>
+<td>Retrieval coverage</td>
+</tr>
+<tr>
+<td>Precision@K</td>
+<td>relevant∩retrieved / K</td>
+<td>Retrieval accuracy</td>
+</tr>
+<tr>
+<td>MRR</td>
+<td>1/rank_of_first_relevant</td>
+<td>Speed to first good result</td>
+</tr>
+<tr>
+<td>NDCG@K</td>
+<td>DCG@K / IDCG@K</td>
+<td>Ranking quality with graded relevance</td>
+</tr>
+<tr>
+<td>Hit Rate</td>
+<td>1 if any relevant in top-K, else 0</td>
+<td>Basic coverage check</td>
+</tr>
+</tbody>
+</table>
+<h4 id="online-metrics-ab-test">Online metrics (A/B test):</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>What it measures</th>
+<th>Stakeholder</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CTR</td>
+<td>Clicks / Impressions</td>
+<td>User engagement</td>
+</tr>
+<tr>
+<td>CVR</td>
+<td>Downloads / Clicks</td>
+<td>Conversion quality</td>
+</tr>
+<tr>
+<td>Revenue per query</td>
+<td>Total ad spend / queries</td>
+<td>Business</td>
+</tr>
+<tr>
+<td>ROAS</td>
+<td>Advertiser revenue / ad spend</td>
+<td>Advertiser satisfaction</td>
+</tr>
+<tr>
+<td>Relevance (human eval)</td>
+<td>Annotated relevance score</td>
+<td>Quality</td>
+</tr>
+<tr>
+<td>Time to first click</td>
+<td>Latency of user decision</td>
+<td>UX</td>
+</tr>
+<tr>
+<td>Advertiser churn</td>
+<td>% advertisers leaving</td>
+<td>Long-term health</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="q12-llm-applications-in-ads-matching">Q12: LLM applications in ads matching</h3>
+<ol>
+<li><strong>Query understanding</strong> — LLM for query expansion, intent classification, reformulation</li>
+<li><strong>Relevance scoring</strong> — LLM-as-judge for query-app relevance (can replace expensive human annotation)</li>
+<li><strong>Embedding models</strong> — LLM-based encoders (E5-large, GTE, BGE) as dual encoder backbone</li>
+<li><strong>Feature extraction</strong> — Extract structured attributes from unstructured app descriptions</li>
+<li><strong>Synthetic data generation</strong> — Generate training pairs for under-represented queries</li>
+<li><strong>Ad creative understanding</strong> — Assess ad copy quality, detect misleading content</li>
+</ol>
+<p><strong>Apple privacy constraint on LLMs:</strong>
+- Cannot fine-tune on individual user data
+- Use LLMs for contextual understanding (query-level, app-level) not personalization
+- On-device LLM inference possible for some components</p>
+<hr />
+<h3 id="q13-multi-stage-system-architecture">Q13: Multi-stage system architecture</h3>
+<p><strong>Note:</strong> See <strong>Q8b: Multi-Channel Retrieval</strong> for the most complete end-to-end pipeline (multi-channel sourcing → RRF fusion → relevance filter → ranking → auction). The diagram below is a simplified version.</p>
+<pre><code>User Query
+    │
+    ▼
+┌──────────────────────────────────────────────────────────┐
+│ Query Understanding (Q10)                                 │
+│   Traditional: spell correct, expand, intent detect       │
+│   Advanced: LLM journey understanding → sourcing routing  │
+└─────────┬────────────────────────────────────────────────┘
+          │
+          ▼
+┌──────────────────────────────────────────────────────────┐
+│ Multi-Channel Retrieval (Q8b)                             │
+│   BM25 + Semantic + Offline + Graph + Rule-based          │
+│   → Union + RRF Fusion → ~500 candidates                  │
+│   Latency budget: 10-15ms                                 │
+└─────────┬────────────────────────────────────────────────┘
+          │
+          ▼
+┌──────────────────────────────────────────────────────────┐
+│ Relevance Gate (Q7b/Q7d-h)                                │
+│   Standalone relevance model (distilled cross-encoder)    │
+│   Filter: relevance &lt; threshold → remove                  │
+│   Latency budget: 5-10ms                                  │
+└─────────┬────────────────────────────────────────────────┘
+          │
+          ▼
+┌──────────────────────────────────────────────────────────┐
+│ Ranking                                                   │
+│   Heavy model (deep NN with cross features, multi-obj)    │
+│   pCTR × pCVR × bid × relevance → ~20 candidates         │
+│   Latency budget: 20ms                                    │
+└─────────┬────────────────────────────────────────────────┘
+          │
+          ▼
+┌──────────────────────────────────────────────────────────┐
+│ Re-ranking / Auction                                      │
+│   Business rules, bid adjustment, budget pacing,          │
+│   diversity, frequency cap, privacy filters               │
+└─────────┬────────────────────────────────────────────────┘
+          │
+          ▼
+    Final ads shown (3-5)
+</code></pre>
+<p><strong>Key principle:</strong> Each stage uses a more complex model on fewer candidates. Total latency budget: ~50-100ms.</p>
+<blockquote>
+<p><strong>How to say it in interview:</strong></p>
+<p>"Let me walk through the end-to-end system. It starts with query understanding — at the basic level that's spell correction and intent detection, but more advanced systems use LLMs to understand the customer's journey and dynamically route sourcing strategies.</p>
+<p>Then multi-channel retrieval: I'd run BM25, semantic dual encoder, offline pre-computed tables, and graph-based retrieval in parallel. Each covers different aspects — exact match, semantic similarity, proven historical patterns, and behavioral signals. Results are merged using Reciprocal Rank Fusion, which only uses ranks so you don't need to normalize scores across channels.</p>
+<p>After fusion, a relevance model — a distilled cross-encoder — acts as a quality gate: anything below a relevance threshold is filtered regardless of revenue potential. Then the ranking model scores remaining candidates on multiple objectives: predicted CTR, predicted conversion rate, bid price, and relevance — probably via a deep network with feature crosses. Finally, an auction/re-ranking layer applies business constraints: budget pacing, frequency caps, diversity, and privacy filters.</p>
+<p>The design principle throughout: fewer candidates at each stage → heavier model → higher quality per candidate. Total latency stays under 100ms."</p>
+</blockquote>
+<hr />
+<h3 id="q15-privacy-centric-ads-matching-apple-specific">Q15: Privacy-centric ads matching (Apple-specific)</h3>
+<p><strong>Constraints:</strong>
+- No cross-app tracking (IDFA opt-in rate ~25%)
+- No user-level behavioral profiles shared across apps
+- Differential privacy requirements</p>
+<h4 id="what-exactly-is-restricted-vs-allowed">What exactly is restricted vs allowed:</h4>
+<p><strong>ALLOWED (first-party, session-level, aggregated):</strong></p>
+<ul>
+<li>Query text in current session — first-party, within App Store</li>
+<li>Apps browsed in current session (dwell time, clicks) — session-level, ephemeral</li>
+<li>App-to-app co-install graph (aggregated) — population-level, no individual ID</li>
+<li>Session-based intent refinement via LLM — on-session contextual, no persistence needed</li>
+</ul>
+<p><strong>NOT ALLOWED (cross-app, persistent, third-party):</strong></p>
+<ul>
+<li>Cross-app behavior (what user did in Safari, Instagram) — needs IDFA</li>
+<li>Third-party DMP data (external audience profiles) — no third-party enrichment</li>
+</ul>
+<p><strong>LIMITED (needs special handling):</strong></p>
+<ul>
+<li>Persistent user profile across sessions — requires differential privacy or on-device only</li>
+<li>Long-term user embedding (historical behavior) — on-device only, not server-side</li>
+</ul>
+<h4 id="what-this-limits-for-algorithm-development">What this limits for algorithm development:</h4>
+<p><strong>Google/Meta can do → Apple cannot → Apple alternative:</strong></p>
+<ul>
+<li>User embedding from full behavioral history → No persistent user profile → Session-level embedding (ephemeral)</li>
+<li>Cross-app interest graph → Only App Store data → Within-store co-install graph</li>
+<li>Long-term personalized retrieval model → No user-level features server-side → Contextual retrieval + session adaptation</li>
+<li>Lookalike audience targeting → No individual-level matching → Cohort-level targeting with DP</li>
+<li>Retargeting (user saw X, show Y later) → No cross-session retargeting → Within-session journey only</li>
+</ul>
+<h4 id="how-to-do-good-matching-under-privacy">How to do good matching under privacy:</h4>
+<ol>
+<li><strong>Contextual signals only:</strong></li>
+<li>Query text, search context, time of day, device type, OS version</li>
+<li>Current app category being browsed</li>
+<li>
+<p>NO: browsing history, cross-app behavior, location history</p>
+</li>
+<li>
+<p><strong>On-device processing:</strong></p>
+</li>
+<li>Run lightweight models on-device</li>
+<li>Send only aggregated/anonymized signals to server</li>
+<li>
+<p>Apple's on-device ML framework (Core ML) enables this</p>
+</li>
+<li>
+<p><strong>Differential privacy:</strong></p>
+</li>
+<li>Aggregate behavioral statistics with calibrated noise</li>
+<li>Know that "photo editor queries lead to 30% download rate for app X" without knowing WHO</li>
+<li>
+<p>Apple's Private Relay / SKAdNetwork patterns</p>
+</li>
+<li>
+<p><strong>Cohort-based approaches:</strong></p>
+</li>
+<li>Group users into privacy-preserving cohorts by interest</li>
+<li>Similar to Google's Topics API but Apple's own implementation</li>
+<li>
+<p>No individual-level targeting, only cohort-level</p>
+</li>
+<li>
+<p><strong>First-party contextual relevance:</strong></p>
+</li>
+<li>Heavy investment in query-app semantic matching (doesn't need user data)</li>
+<li>App quality signals (ratings, reviews, developer reputation)</li>
+<li>Category-level behavioral priors (not user-level)</li>
+</ol>
+<h4 id="llm-session-based-orchestration-fully-privacy-compliant">LLM Session-based Orchestration — Fully Privacy-Compliant</h4>
+<p>Your idea of using LLM to understand customer journey within a session and adapt sourcing strategy is <strong>completely compliant</strong> with Apple's privacy model:</p>
+<p><strong>Step 1:</strong> User searches "photo editing"
+- Standard multi-channel retrieval (no personalization yet)
+- Shows: Lightroom, VSCO, Snapseed, PicsArt, Canva...</p>
+<p><strong>Step 2:</strong> User browses within session
+- Clicks Lightroom page (dwell: 45s), goes back
+- Clicks Photoshop page (dwell: 30s), goes back
+- Skips VSCO, PicsArt (casual/filter apps)</p>
+<p><strong>Step 3:</strong> Session signal collected (first-party, ephemeral, no persistent ID)
+- Interested in PRO-level tools (not casual filters)
+- Specifically color grading / retouching</p>
+<p><strong>Step 4:</strong> LLM Journey Understanding (on-session, no stored profile)
+- Input: original query + session clicks + dwell patterns
+- Output: refined intent = "professional color grading software"
+- Rewritten query: "photo color correction professional tool"
+- Strategy: activate app-to-app retrieval (Lightroom as seed)
+- Thresholds: higher quality bar, less diversity needed</p>
+<p><strong>Step 5:</strong> Re-retrieval with adapted strategy
+- Semantic: encode "professional color grading" via ANN
+- App-to-app: Lightroom co-install neighbors (Darkroom, Affinity Photo)
+- Offline table: known pro photo editing apps</p>
+<p><strong>Step 6:</strong> Updated results shown
+- Darkroom, Affinity Photo, Capture One, Pixelmator Pro</p>
+<p><strong>Why this is privacy-compliant:</strong>
+- Only uses within-session, first-party signals (App Store is Apple's own platform)
+- No IDFA needed, no cross-app tracking
+- Session data can be ephemeral (discarded after session ends)
+- LLM inference can run on-device if needed
+- App-to-app graph is population-level aggregation (no individual data)</p>
+<p><strong>This is actually the OPTIMAL strategy under privacy constraints</strong> — since you can't build long-term user profiles, the best lever is real-time contextual understanding within the session.</p>
+<p><strong>This is actually a competitive advantage:</strong>
+- Forces better contextual matching → better relevance
+- Users trust the platform more → more engagement
+- Advertisers get privacy-compliant targeting → regulatory safety</p>
+<blockquote>
+<p><strong>How to say it in interview:</strong></p>
+<p>"Apple's privacy constraints shape the system in specific ways. We can't do cross-app tracking, persistent user profiles, or third-party data enrichment. But what we CAN use — and this is the key insight — is first-party, session-level signals within the App Store itself.</p>
+<p>So my approach would be: start with standard contextual retrieval on the first query. But as the user browses — clicks on Lightroom, spends time on Photoshop, skips the casual filter apps — I'd use an LLM to understand their evolving intent within that session. The LLM refines the query from generic 'photo editing' to specific 'professional color grading,' and dynamically adjusts the sourcing strategy — activating app-to-app retrieval based on what they've been browsing, tightening the relevance threshold.</p>
+<p>This is fully privacy-compliant: it's all first-party, within-session, ephemeral data. No IDFA, no cross-app tracking, no persistent profile. The session ends, the data can be discarded. And it's actually the optimal strategy under these constraints — since we can't exploit long-term user history, real-time session understanding becomes our primary personalization lever.</p>
+<p>For aggregate signals, I'd use differential privacy on population-level statistics — we can know that 'photo editor' queries lead to 30% download rate for Lightroom without knowing which user did what. And the co-install graph used for app-to-app retrieval is also population-level — 'users who installed Lightroom also installed Darkroom' requires no individual tracking."</p>
+</blockquote>
+<hr />
+<h2 id="part-3-system-design-round-framework">Part 3: System Design Round Framework</h2>
+<p><strong>Time allocation (45 min):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Time</th>
+<th>Focus</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Problem clarification &amp; metrics</td>
+<td>5 min</td>
+<td>Scope, scale, latency requirements, success metrics</td>
+</tr>
+<tr>
+<td>High-level architecture</td>
+<td>5 min</td>
+<td>Draw the multi-stage pipeline</td>
+</tr>
+<tr>
+<td><strong>Modeling deep dive</strong></td>
+<td><strong>20 min</strong></td>
+<td>Feature engineering, model architecture, training, loss, evaluation</td>
+</tr>
+<tr>
+<td>System &amp; infrastructure</td>
+<td>10 min</td>
+<td>Serving, ANN index, latency, scaling, monitoring</td>
+</tr>
+<tr>
+<td>Trade-offs &amp; iteration</td>
+<td>5 min</td>
+<td>What to improve, A/B testing strategy</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Modeling deep dive should cover:</strong>
+- Feature engineering (what signals feed the model)
+- Model architecture choice and WHY
+- Training data collection and labeling
+- Loss function design
+- Offline evaluation and online A/B testing
+- Failure modes and mitigations (cold start, position bias, relevance drift)</p>
+<p><strong>System/infra should cover:</strong>
+- Real-time serving path vs offline computation
+- ANN index building and updating
+- Model update cadence
+- Monitoring and alerting (latency, relevance drift, CTR drops)
+- Scaling considerations (50K apps today → millions in future)</p>
+<hr />
+<h2 id="key-takeaways-for-all-rounds">Key Takeaways for All Rounds</h2>
+<ol>
+<li><strong>Always tie back to Apple's constraints</strong>: privacy, customer experience, premium brand</li>
+<li><strong>Show end-to-end thinking</strong>: not just the model, but data → training → serving → monitoring</li>
+<li><strong>Quantify impact</strong>: mention metrics (CTR +X%, Recall@500 = 95%, latency &lt; 50ms)</li>
+<li><strong>BM25 doesn't need training</strong> — it's the unsupervised baseline that always works</li>
+<li><strong>Dual encoder for retrieval, cross-encoder for ranking</strong> — standard industry pattern</li>
+<li><strong>Multi-objective optimization</strong> — revenue vs relevance is THE core tension in ads</li>
+<li><strong>Apple is earlier stage</strong> — show you can build from scratch, not just optimize at scale</li>
+</ol>
+</body>
+</html>

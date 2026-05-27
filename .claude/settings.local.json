@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh api *)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:finance.yahoo.com)",
+      "mcp__builder-mcp__ReadInternalWebsites",
+      "mcp__builder-mcp__InternalSearch",
+      "Bash(grep -n '^\\\\$\\\\$\\\\|`\\\\$\\\\|^\\\\$' /Users/xinshen/Dropbox/MyCodeWorkSpace/MLImplementations/high_frequent_MLquestions/sourcing/ads_sourcing_matching_interview_prep.md)",
+      "Bash(grep -n \"^---$\" /Users/xinshen/Dropbox/MyCodeWorkSpace/MLImplementations/high_frequent_MLquestions/sourcing/ads_sourcing_matching_interview_prep.md)",
+      "Bash(awk -F: 'prev && $1==prev+2{print prev\": ---\"; print $0} {prev=$1}')",
+      "Bash(grep -n '```\\\\|---')",
+      "Bash(grep *)",
+      "Bash(brew install *)",
+      "Bash(pdftotext \"/Users/xinshen/Dropbox/Resume/external/Airbnb/project_wrap.pdf\" /tmp/project_wrap.txt)",
+      "Read(//tmp/**)",
+      "Bash(python3 *)",
+      "Bash(pip install *)",
+      "Bash(/usr/sbin/cupsfilter)"
+    ]
+  }
+}
